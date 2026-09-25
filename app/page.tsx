@@ -23,7 +23,7 @@ export default function Home() {
             backgroundImage: "url('/logo.jpeg')", 
             backgroundSize: 'cover', 
             backgroundPosition: 'center',
-            opacity: 0.12 
+            opacity: 0.75
           }}
         />
         <div className="absolute inset-0 z-0 bg-white/60"></div>
