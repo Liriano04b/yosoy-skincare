@@ -31,7 +31,7 @@ export default function AdminLogin() {
         
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Correo Electrónico</label>
             <input
               type="email"
               value={email}
@@ -42,7 +42,7 @@ export default function AdminLogin() {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Contraseña</label>
             <input
               type="password"
               value={password}
