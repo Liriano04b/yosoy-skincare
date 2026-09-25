@@ -28,27 +28,30 @@ export default function AdminLogin() {
     <div className="flex min-h-screen items-center justify-center bg-[#FAFAFA] p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
         <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">Yosoy Admin</h1>
-        
+
         <form onSubmit={handleLogin} className="space-y-5">
+          {/*Fragmento clave para las etiquetas y inputs en tu formulario de admin:*/}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Correo Electrónico</label>
+            <label className="block text-sm font-semibold text-gray-800 mb-2">
+              Correo Electrónico
+            </label>
             <input
               type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg p-3 outline-none focus:border-[#E50000] focus:ring-1 focus:ring-[#E50000] transition-colors"
-              required
+              className="w-full px-4 py-3 rounded-xl border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#E50000] focus:ring-2 focus:ring-red-100 transition-all font-medium"
+              placeholder="tucorreo@ejemplo.com"
+            // ... tus estados y valores
             />
           </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Contraseña</label>
+
+          <div className="mt-4">
+            <label className="block text-sm font-semibold text-gray-800 mb-2">
+              Contraseña
+            </label>
             <input
               type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg p-3 outline-none focus:border-[#E50000] focus:ring-1 focus:ring-[#E50000] transition-colors"
-              required
+              className="w-full px-4 py-3 rounded-xl border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#E50000] focus:ring-2 focus:ring-red-100 transition-all font-medium"
+              placeholder="••••••••"
+            // ... tus estados y valores
             />
           </div>
 

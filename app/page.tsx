@@ -6,7 +6,7 @@ import { ShoppingBag, Sparkles, ClipboardList, ArrowRight, Heart } from "lucide-
 export default function Home() {
   return (
     <div className="min-h-screen bg-white">
-      {/* Navegación Superior (Restaurada con texto) */}
+      {/* Navegación Superior */}
       <nav className="border-b border-gray-100 p-6 relative z-20 bg-white">
         <div className="max-w-6xl mx-auto flex justify-center">
           <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
@@ -15,33 +15,40 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* Banner Principal con el Logo de Fondo */}
-      <header className="relative py-20 md:py-32 px-6 text-center overflow-hidden border-b border-gray-100">
-        {/* Fondo con el logo tipo marca de agua */}
+      {/* Banner Principal con el Logo de Fondo (Solo título y bajada principal) */}
+      <header className="relative py-20 md:py-28 px-6 text-center overflow-hidden border-b border-gray-100">
         <div 
           className="absolute inset-0 z-0"
           style={{ 
             backgroundImage: "url('/logo.jpeg')", 
             backgroundSize: 'cover', 
             backgroundPosition: 'center',
-            opacity: 0.70 /* Un 12% de opacidad para que sea muy sutil */
+            opacity: 0.12 
           }}
         />
-        {/* Capa blanca semitransparente para asegurar que el texto se lea perfecto */}
         <div className="absolute inset-0 z-0 bg-white/60"></div>
 
         <div className="relative z-10 max-w-3xl mx-auto">
           <h2 className="text-4xl md:text-6xl font-extrabold text-gray-900 mb-6 leading-tight drop-shadow-sm">
             Tu viaje hacia una piel sana comienza aquí
           </h2>
-          <p className="text-lg md:text-xl text-gray-800 mb-10 leading-relaxed font-medium">
-            No vendemos solo productos, te ayudamos a construir el hábito que transformará tu rostro. ¿Qué te gustaría hacer hoy?
+          <p className="text-lg md:text-xl text-gray-800 leading-relaxed font-medium">
+            No vendemos solo productos, te ayudamos a construir el hábito que transformará tu rostro.
           </p>
         </div>
       </header>
 
-      {/* Menú Principal de Opciones (El Hub) */}
+      {/* Sección de Opciones con la pregunta destacada arriba */}
       <main className="max-w-5xl mx-auto px-6 py-16 md:py-20 relative z-10 bg-white">
+        
+        {/* Pregunta movida aquí */}
+        <div className="text-center mb-12">
+          <h3 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+            ¿Qué te gustaría hacer hoy?
+          </h3>
+          <p className="text-gray-500 mt-2">Selecciona una de nuestras opciones para comenzar</p>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           
           {/* Opción 1: El Quiz */}
@@ -53,7 +60,7 @@ export default function Home() {
               <span className="absolute top-4 right-4 bg-[#E50000] text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">
                 Recomendado
               </span>
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Descubre tu rutina ideal</h3>
+              <h4 className="text-2xl font-bold text-gray-900 mb-4">Descubre tu rutina ideal</h4>
               <p className="text-gray-600 mb-8 flex-grow">
                 Responde unas breves preguntas sobre tu piel y recibe una recomendación personalizada al instante.
               </p>
@@ -69,7 +76,7 @@ export default function Home() {
               <div className="bg-gray-50 text-gray-900 w-20 h-20 rounded-full flex items-center justify-center mb-6 group-hover:bg-red-50 group-hover:text-[#E50000] transition-colors duration-300">
                 <Sparkles size={36} />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Ver Rutinas</h3>
+              <h4 className="text-2xl font-bold text-gray-900 mb-4">Ver Rutinas</h4>
               <p className="text-gray-600 mb-8 flex-grow">
                 Soluciones completas paso a paso. Diseñadas para hidratar, controlar acné, manchas y más.
               </p>
@@ -85,7 +92,7 @@ export default function Home() {
               <div className="bg-gray-50 text-gray-900 w-20 h-20 rounded-full flex items-center justify-center mb-6 group-hover:bg-red-50 group-hover:text-[#E50000] transition-colors duration-300">
                 <ShoppingBag size={36} />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Catálogo Completo</h3>
+              <h4 className="text-2xl font-bold text-gray-900 mb-4">Catálogo Completo</h4>
               <p className="text-gray-600 mb-8 flex-grow">
                 ¿Ya sabes lo que buscas? Explora todos nuestros productos individuales disponibles en inventario.
               </p>
@@ -109,4 +116,4 @@ export default function Home() {
       </footer>
     </div>
   );
-} 
+}
