@@ -4,10 +4,14 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { ShoppingBag, ArrowLeft } from "lucide-react";
+import { useCart } from "@/context/CartContext";
 
 export default function Catalogo() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // 1. Extraemos la función del carrito
+  const { addToCart } = useCart(); 
 
   useEffect(() => {
     fetchProducts();
@@ -23,6 +27,17 @@ export default function Catalogo() {
       setProducts(data);
     }
     setLoading(false);
+  };
+
+  // 2. Función para manejar el clic sin redireccionar
+  const handleAddToCart = (e: React.MouseEvent, product: any) => {
+    e.preventDefault(); 
+    addToCart({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      image_url: product.image_urls?.[0] || product.image_url || "/placeholder.jpg"
+    });
   };
 
   return (
@@ -57,7 +72,7 @@ export default function Catalogo() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
             {products.map((product) => (
               <Link href={`/producto/${product.slug}`} key={product.id} className="group cursor-pointer">
-                <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 transform group-hover:-translate-y-1">
+                <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 transform group-hover:-translate-y-1 h-full flex flex-col">
                   
                   <div className="aspect-square bg-[#FAFAFA] p-6 flex items-center justify-center relative overflow-hidden border-b border-gray-50">
                     <img 
@@ -72,16 +87,28 @@ export default function Catalogo() {
                     )}
                   </div>
 
-                  <div className="p-5">
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-                      {product.brand}
-                    </p>
-                    <h4 className="text-lg font-bold text-gray-900 mb-3 line-clamp-1 group-hover:text-[#E50000] transition-colors">
-                      {product.name}
-                    </h4>
-                    <p className="text-xl font-extrabold text-gray-900">
-                      RD${product.price.toLocaleString()}
-                    </p>
+                  {/* 3. Ajustamos el contenedor para que el botón siempre quede abajo */}
+                  <div className="p-5 flex-grow flex flex-col justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+                        {product.brand}
+                      </p>
+                      <h4 className="text-lg font-bold text-gray-900 mb-3 line-clamp-1 group-hover:text-[#E50000] transition-colors">
+                        {product.name}
+                      </h4>
+                      <p className="text-xl font-extrabold text-gray-900 mb-4">
+                        RD${product.price.toLocaleString()}
+                      </p>
+                    </div>
+                    
+                    {/* Botón de Agregar al Carrito */}
+                    <button
+                      onClick={(e) => handleAddToCart(e, product)}
+                      className="w-full bg-[#E50000] text-white font-semibold py-3 rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <ShoppingBag size={18} />
+                      Agregar al Carrito
+                    </button>
                   </div>
                   
                 </div>

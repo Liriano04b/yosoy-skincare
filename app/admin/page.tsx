@@ -31,6 +31,7 @@ export default function AdminLogin() {
 
         <form onSubmit={handleLogin} className="space-y-5">
           {/*Fragmento clave para las etiquetas y inputs en tu formulario de admin:*/}
+          {/* Campo de Correo Electrónico */}
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-2">
               Correo Electrónico
@@ -39,10 +40,12 @@ export default function AdminLogin() {
               type="email"
               className="w-full px-4 py-3 rounded-xl border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#E50000] focus:ring-2 focus:ring-red-100 transition-all font-medium"
               placeholder="tucorreo@ejemplo.com"
-            // ... tus estados y valores
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
           </div>
 
+          {/* Campo de Contraseña */}
           <div className="mt-4">
             <label className="block text-sm font-semibold text-gray-800 mb-2">
               Contraseña
@@ -51,10 +54,11 @@ export default function AdminLogin() {
               type="password"
               className="w-full px-4 py-3 rounded-xl border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#E50000] focus:ring-2 focus:ring-red-100 transition-all font-medium"
               placeholder="••••••••"
-            // ... tus estados y valores
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
             />
           </div>
-
+          
           {error && <p className="text-[#E50000] text-sm text-center">{error}</p>}
 
           <button

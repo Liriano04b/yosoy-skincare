@@ -15,15 +15,15 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* Banner Principal con el Logo de Fondo (Solo título y bajada principal) */}
-      <header className="relative py-20 md:py-28 px-6 text-center overflow-hidden border-b border-gray-100">
+      {/* Banner Principal SIN EL BORDE GRIS */}
+      <header className="relative py-20 md:py-28 px-6 text-center overflow-hidden">
         <div 
           className="absolute inset-0 z-0"
           style={{ 
-            backgroundImage: "url('/logo.jpeg')", 
+            backgroundImage: "url('/fondo.png')", 
             backgroundSize: 'cover', 
             backgroundPosition: 'center',
-            opacity: 0.75
+            opacity: 0.8
           }}
         />
         <div className="absolute inset-0 z-0 bg-white/60"></div>
@@ -38,70 +38,89 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Sección de Opciones con la pregunta destacada arriba */}
-      <main className="max-w-5xl mx-auto px-6 py-16 md:py-20 relative z-10 bg-white">
+      {/* Sección de Opciones con fondo fusionado */}
+      <main className="relative py-16 md:py-20 z-10 overflow-hidden">
         
-        {/* Pregunta movida aquí */}
-        <div className="text-center mb-12">
-          <h3 className="text-2xl md:text-3xl font-extrabold text-gray-900">
-            ¿Qué te gustaría hacer hoy?
-          </h3>
-          <p className="text-gray-500 mt-2">Selecciona una de nuestras opciones para comenzar</p>
-        </div>
+        {/* Capa de la Imagen de Fondo */}
+        <div 
+          className="absolute inset-0 z-0"
+          style={{ 
+            backgroundImage: "url('/fondo-seccion.jpeg')", /* Tu nueva imagen */
+            backgroundSize: 'cover', 
+            backgroundPosition: 'center',
+            opacity: 98
+          }}
+        />
+        
+        {/* LA MAGIA: Degradado que va de blanco puro arriba (para fusionarse) a semitransparente abajo */}
+        <div className="absolute inset-0 z-0 bg-gradient-to-b from-white via-white/70 to-white/70"></div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        {/* Contenedor del contenido (Texto y Tarjetas) */}
+        <div className="relative z-10 max-w-5xl mx-auto px-6">
           
-          {/* Opción 1: El Quiz */}
-          <Link href="/descubre-tu-piel" className="group">
-            <div className="h-full bg-white border-2 border-gray-100 rounded-3xl p-8 hover:border-[#E50000] hover:shadow-2xl hover:shadow-red-100 transition-all duration-300 flex flex-col items-center text-center relative overflow-hidden transform group-hover:-translate-y-2">
-              <div className="bg-red-50 text-[#E50000] w-20 h-20 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <ClipboardList size={36} />
-              </div>
-              <span className="absolute top-4 right-4 bg-[#E50000] text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">
-                Recomendado
-              </span>
-              <h4 className="text-2xl font-bold text-gray-900 mb-4">Descubre tu rutina ideal</h4>
-              <p className="text-gray-600 mb-8 flex-grow">
-                Responde unas breves preguntas sobre tu piel y recibe una recomendación personalizada al instante.
-              </p>
-              <div className="flex items-center gap-2 text-[#E50000] font-bold group-hover:gap-4 transition-all">
-                Comenzar Test <ArrowRight size={20} />
-              </div>
-            </div>
-          </Link>
+          <div className="text-center mb-12">
+            <h3 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+              ¿Qué te gustaría hacer hoy?
+            </h3>
+            <p className="text-gray-700 mt-2 font-medium">Selecciona una de nuestras opciones para comenzar</p>
+          </div>
 
-          {/* Opción 2: Rutinas Armadas */}
-          <Link href="/rutinas" className="group">
-            <div className="h-full bg-white border-2 border-gray-100 rounded-3xl p-8 hover:border-[#E50000] hover:shadow-2xl hover:shadow-red-100 transition-all duration-300 flex flex-col items-center text-center transform group-hover:-translate-y-2">
-              <div className="bg-gray-50 text-gray-900 w-20 h-20 rounded-full flex items-center justify-center mb-6 group-hover:bg-red-50 group-hover:text-[#E50000] transition-colors duration-300">
-                <Sparkles size={36} />
-              </div>
-              <h4 className="text-2xl font-bold text-gray-900 mb-4">Ver Rutinas</h4>
-              <p className="text-gray-600 mb-8 flex-grow">
-                Soluciones completas paso a paso. Diseñadas para hidratar, controlar acné, manchas y más.
-              </p>
-              <div className="flex items-center gap-2 text-gray-900 font-bold group-hover:text-[#E50000] group-hover:gap-4 transition-all">
-                Explorar Rutinas <ArrowRight size={20} />
-              </div>
-            </div>
-          </Link>
+          {/* ... AQUI CONTINÚA EL GRID CON TUS 3 TARJETAS EXACTAMENTE IGUAL QUE ANTES ... */}
 
-          {/* Opción 3: Catálogo Libre */}
-          <Link href="/catalogo" className="group">
-            <div className="h-full bg-white border-2 border-gray-100 rounded-3xl p-8 hover:border-[#E50000] hover:shadow-2xl hover:shadow-red-100 transition-all duration-300 flex flex-col items-center text-center transform group-hover:-translate-y-2">
-              <div className="bg-gray-50 text-gray-900 w-20 h-20 rounded-full flex items-center justify-center mb-6 group-hover:bg-red-50 group-hover:text-[#E50000] transition-colors duration-300">
-                <ShoppingBag size={36} />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            
+            {/* Opción 1: El Quiz */}
+            <Link href="/descubre-tu-piel" className="group">
+              <div className="h-full bg-white/90 backdrop-blur-sm border-2 border-gray-100 rounded-3xl p-8 hover:border-[#E50000] hover:shadow-2xl hover:shadow-red-100 transition-all duration-300 flex flex-col items-center text-center relative overflow-hidden transform group-hover:-translate-y-2">
+                <div className="bg-red-50 text-[#E50000] w-20 h-20 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <ClipboardList size={36} />
+                </div>
+                <span className="absolute top-4 right-4 bg-[#E50000] text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">
+                  Recomendado
+                </span>
+                <h4 className="text-2xl font-bold text-gray-900 mb-4">Descubre tu rutina ideal</h4>
+                <p className="text-gray-600 mb-8 flex-grow">
+                  Responde unas breves preguntas sobre tu piel y recibe una recomendación personalizada al instante.
+                </p>
+                <div className="flex items-center gap-2 text-[#E50000] font-bold group-hover:gap-4 transition-all">
+                  Comenzar Test <ArrowRight size={20} />
+                </div>
               </div>
-              <h4 className="text-2xl font-bold text-gray-900 mb-4">Catálogo Completo</h4>
-              <p className="text-gray-600 mb-8 flex-grow">
-                ¿Ya sabes lo que buscas? Explora todos nuestros productos individuales disponibles en inventario.
-              </p>
-              <div className="flex items-center gap-2 text-gray-900 font-bold group-hover:text-[#E50000] group-hover:gap-4 transition-all">
-                Ver Inventario <ArrowRight size={20} />
-              </div>
-            </div>
-          </Link>
+            </Link>
 
+            {/* Opción 2: Rutinas Armadas */}
+            <Link href="/rutinas" className="group">
+              <div className="h-full bg-white/90 backdrop-blur-sm border-2 border-gray-100 rounded-3xl p-8 hover:border-[#E50000] hover:shadow-2xl hover:shadow-red-100 transition-all duration-300 flex flex-col items-center text-center transform group-hover:-translate-y-2">
+                <div className="bg-gray-50 text-gray-900 w-20 h-20 rounded-full flex items-center justify-center mb-6 group-hover:bg-red-50 group-hover:text-[#E50000] transition-colors duration-300">
+                  <Sparkles size={36} />
+                </div>
+                <h4 className="text-2xl font-bold text-gray-900 mb-4">Ver Rutinas</h4>
+                <p className="text-gray-600 mb-8 flex-grow">
+                  Soluciones completas paso a paso. Diseñadas para hidratar, controlar acné, manchas y más.
+                </p>
+                <div className="flex items-center gap-2 text-gray-900 font-bold group-hover:text-[#E50000] group-hover:gap-4 transition-all">
+                  Explorar Rutinas <ArrowRight size={20} />
+                </div>
+              </div>
+            </Link>
+
+            {/* Opción 3: Catálogo Libre */}
+            <Link href="/catalogo" className="group">
+              <div className="h-full bg-white/90 backdrop-blur-sm border-2 border-gray-100 rounded-3xl p-8 hover:border-[#E50000] hover:shadow-2xl hover:shadow-red-100 transition-all duration-300 flex flex-col items-center text-center transform group-hover:-translate-y-2">
+                <div className="bg-gray-50 text-gray-900 w-20 h-20 rounded-full flex items-center justify-center mb-6 group-hover:bg-red-50 group-hover:text-[#E50000] transition-colors duration-300">
+                  <ShoppingBag size={36} />
+                </div>
+                <h4 className="text-2xl font-bold text-gray-900 mb-4">Catálogo Completo</h4>
+                <p className="text-gray-600 mb-8 flex-grow">
+                  ¿Ya sabes lo que buscas? Explora todos nuestros productos individuales disponibles en inventario.
+                </p>
+                <div className="flex items-center gap-2 text-gray-900 font-bold group-hover:text-[#E50000] group-hover:gap-4 transition-all">
+                  Ver Inventario <ArrowRight size={20} />
+                </div>
+              </div>
+            </Link>
+
+          </div>
         </div>
       </main>
 
