@@ -8,12 +8,14 @@ export default function NuevoProducto() {
   const [name, setName] = useState("");
   const [brand, setBrand] = useState("");
   const [price, setPrice] = useState("");
+  const [discountPrice, setDiscountPrice] = useState("");
   const [stock, setStock] = useState("");
   
   const [description, setDescription] = useState("");
   const [ingredients, setIngredients] = useState("");
   const [howToUse, setHowToUse] = useState("");
   const [skinType, setSkinType] = useState("Todo tipo de piel");
+  const [category, setCategory] = useState("Serum");
   
   const [images, setImages] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
@@ -40,7 +42,6 @@ export default function NuevoProducto() {
       return;
     }
     setLoading(true);
-
     try {
       const slug = name
         .toLowerCase()
@@ -50,7 +51,6 @@ export default function NuevoProducto() {
         .replace(/(^-|-$)+/g, '');
 
       const uploaded_urls: string[] = [];
-
       for (const img of images) {
         const fileExt = img.name.split('.').pop();
         const fileName = `${Math.random()}.${fileExt}`;
@@ -75,7 +75,9 @@ export default function NuevoProducto() {
           slug,
           brand,
           price: parseFloat(price),
+          discount_price: discountPrice ? parseFloat(discountPrice) : null,
           stock: parseInt(stock),
+          category,
           description,
           ingredients,
           how_to_use: howToUse,
@@ -91,7 +93,6 @@ export default function NuevoProducto() {
 
       alert("¡Producto creado con éxito!");
       window.location.href = "/admin/dashboard";
-
     } catch (error: any) {
       alert(error.message);
     } finally {
@@ -109,13 +110,11 @@ export default function NuevoProducto() {
           <ArrowLeft size={20} />
           Volver al inventario
         </button>
-
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="p-5 md:p-6 border-b border-gray-100 bg-white">
             <h1 className="text-lg md:text-xl font-bold text-gray-900">Agregar Nuevo Producto</h1>
             <p className="text-xs md:text-sm text-gray-500 mt-1">Completa los detalles y agrega hasta 5 fotografías.</p>
           </div>
-
           <form onSubmit={handleSubmit} className="p-5 md:p-8 space-y-6 md:space-y-8">
             
             {/* FOTOGRAFÍAS */}
@@ -138,8 +137,6 @@ export default function NuevoProducto() {
                   <span className="text-xs text-gray-500 mt-1">PNG, JPG (Varias a la vez)</span>
                 </label>
               </div>
-
-              {/* Vista previa de las imágenes */}
               {images.length > 0 && (
                 <div className="flex gap-3 flex-wrap">
                   {images.map((file, index) => (
@@ -161,8 +158,8 @@ export default function NuevoProducto() {
                 </div>
               )}
             </div>
-
-            {/* DATOS PRINCIPALES */}
+            
+            {/* NOMBRES Y MARCA */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Nombre del Producto</label>
@@ -187,17 +184,27 @@ export default function NuevoProducto() {
                 />
               </div>
             </div>
-
-            {/* PRECIO, STOCK Y TIPO DE PIEL */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+            
+            {/* PRECIO, OFERTA E INVENTARIO */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Precio (RD$)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Precio Regular (RD$)</label>
                 <input
                   type="number"
                   required
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 placeholder-gray-400 bg-white text-sm md:text-base"
+                  placeholder="0.00"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Precio Oferta (Opcional)</label>
+                <input
+                  type="number"
+                  value={discountPrice}
+                  onChange={(e) => setDiscountPrice(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-[#E50000] placeholder-gray-400 bg-red-50 text-sm md:text-base font-semibold"
                   placeholder="0.00"
                 />
               </div>
@@ -212,8 +219,31 @@ export default function NuevoProducto() {
                   placeholder="Cantidad"
                 />
               </div>
-              <div className="sm:col-span-2 md:col-span-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Tipo de Piel Recomendada</label>
+            </div>
+
+            {/* CLASIFICACIÓN Y TIPO DE PIEL */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Clasificación</label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 bg-white text-sm md:text-base"
+                >
+                  <option value="Limpiador">Limpiador</option>
+                  <option value="Tónico">Tónico</option>
+                  <option value="Serum">Serum</option>
+                  <option value="Crema Hidratante">Crema Hidratante</option>
+                  <option value="Protector Solar">Protector Solar</option>
+                  <option value="Contorno de Ojos">Contorno de Ojos</option>
+                  <option value="Exfoliante">Exfoliante</option>
+                  <option value="Mascarilla">Mascarilla</option>
+                  <option value="Tratamiento">Tratamiento Específico</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Tipo de Piel</label>
                 <select
                   value={skinType}
                   onChange={(e) => setSkinType(e.target.value)}
@@ -225,11 +255,13 @@ export default function NuevoProducto() {
                   <option value="Piel Mixta">Piel Mixta</option>
                   <option value="Piel Sensible">Piel Sensible</option>
                   <option value="Piel con tendencia acnéica">Tendencia acnéica</option>
+                  <option value="Piel con manchas">Piel con manchas</option>
+                  <option value="Linea de expresión">Linea de expresión</option>
                 </select>
               </div>
             </div>
-
-            {/* DETALLES EXTENSOS (TEXTAREAS) */}
+            
+            {/* TEXTAREAS */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Descripción Detallada</label>
               <textarea
@@ -241,7 +273,6 @@ export default function NuevoProducto() {
                 placeholder="Describe los beneficios principales..."
               />
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Ingredientes Clave</label>
@@ -266,7 +297,7 @@ export default function NuevoProducto() {
                 />
               </div>
             </div>
-
+            
             {/* BOTÓN GUARDAR */}
             <div className="pt-6 border-t border-gray-100 flex justify-end">
               <button
@@ -284,7 +315,6 @@ export default function NuevoProducto() {
                 )}
               </button>
             </div>
-
           </form>
         </div>
       </div>

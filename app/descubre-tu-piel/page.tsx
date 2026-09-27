@@ -32,40 +32,62 @@ export default function DescubreTuPiel() {
     }
   };
 
-  // Búsqueda inteligente en Supabase
+  // ALGORITMO ACTUALIZADO
   const fetchRecommendations = async (selectedSkinType: string) => {
     setLoadingResult(true);
-
     let dbSkinQuery = "Todo tipo de piel";
+    
     if (selectedSkinType.includes("Seca")) dbSkinQuery = "Piel Seca";
     else if (selectedSkinType.includes("Grasa")) dbSkinQuery = "Piel Grasa";
     else if (selectedSkinType.includes("Mixta")) dbSkinQuery = "Piel Mixta";
     else if (selectedSkinType.includes("Sensible")) dbSkinQuery = "Piel Sensible";
+    else if (selectedSkinType.includes("manchas")) dbSkinQuery = "Piel con manchas";
+    else if (selectedSkinType.includes("expresión")) dbSkinQuery = "Linea de expresión";
 
-    // Buscamos productos que coincidan exactamente con el tipo de piel o sean para todo tipo
+    // Buscamos productos específicos para el tipo de piel O los generales ("Todo tipo de piel")
     const { data, error } = await supabase
       .from("products")
       .select("*")
-      .eq("skin_type", dbSkinQuery)
-      .limit(3);
+      .or(`skin_type.eq.${dbSkinQuery},skin_type.eq.Todo tipo de piel`);
 
     if (data && data.length > 0) {
-      setRecommendedProducts(data);
+      // 1. Damos prioridad a los productos que son EXACTAMENTE para el problema del usuario
+      const sortedData = data.sort((a, b) => {
+        if (a.skin_type === dbSkinQuery && b.skin_type !== dbSkinQuery) return -1;
+        if (a.skin_type !== dbSkinQuery && b.skin_type === dbSkinQuery) return 1;
+        return 0;
+      });
+
+      // 2. Armamos una rutina completa evitando repetir categorías (hasta 5 productos)
+      const routine: any[] = [];
+      const categoriesAdded = new Set();
+
+      for (const prod of sortedData) {
+        // Ignoramos productos sin categoría si queremos armar rutinas
+        if (prod.category && !categoriesAdded.has(prod.category) && routine.length < 5) {
+          routine.push(prod);
+          categoriesAdded.add(prod.category);
+        }
+      }
+
+      // 3. Si no llegamos a 5 productos, rellenamos con lo que quede disponible
+      if (routine.length < 5) {
+        for (const prod of sortedData) {
+          if (!routine.find(r => r.id === prod.id) && routine.length < 5) {
+            routine.push(prod);
+          }
+        }
+      }
+
+      setRecommendedProducts(routine);
     } else {
-      // Si no hay productos específicos para esa piel aún, buscamos los generales
-      const { data: generalData } = await supabase
-        .from("products")
-        .select("*")
-        .eq("skin_type", "Todo tipo de piel")
-        .limit(3);
-      
-      setRecommendedProducts(generalData || []);
+      setRecommendedProducts([]);
     }
 
     setTimeout(() => {
       setLoadingResult(false);
       setResultReady(true);
-    }, 1200);
+    }, 1500); // Simulamos que la IA está calculando la rutina ideal
   };
 
   const resetQuiz = () => {
@@ -102,20 +124,23 @@ export default function DescubreTuPiel() {
             </button>
           )}
 
+          {/* PASO 1: TIPOS DE PIEL (ACTUALIZADO) */}
           {!resultReady && !loadingResult && step === 1 && (
             <div>
               <span className="text-xs font-bold text-[#E50000] uppercase tracking-wider bg-red-50 px-3 py-1 rounded-full">
                 Pregunta 1 de 3
               </span>
               <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 mt-4 mb-8">
-                ¿Cómo describirías tu tipo de piel principalmente?
+                ¿Cómo describirías tu tipo de piel o preocupación principal?
               </h2>
               <div className="space-y-4">
                 {[
                   "Piel Seca (Tirante o escamosa)",
                   "Piel Grasa (Brillo constante o exceso de sebo)",
                   "Piel Mixta (Grasa en zona T, seca en mejillas)",
-                  "Piel Sensible / Reactiva"
+                  "Piel Sensible / Reactiva",
+                  "Piel con manchas (Hiperpigmentación u ojeras)", // NUEVO
+                  "Línea de expresión (Prevención y antienvejecimiento)" // NUEVO
                 ].map((option, idx) => (
                   <button
                     key={idx}
@@ -129,6 +154,7 @@ export default function DescubreTuPiel() {
             </div>
           )}
 
+          {/* PASO 2 */}
           {!resultReady && !loadingResult && step === 2 && (
             <div>
               <span className="text-xs font-bold text-[#E50000] uppercase tracking-wider bg-red-50 px-3 py-1 rounded-full">
@@ -142,6 +168,7 @@ export default function DescubreTuPiel() {
                   "Recuperar hidratación profunda y luminosidad",
                   "Controlar brotes, acné y poros dilatados",
                   "Disminuir manchas y unificar el tono",
+                  "Prevenir arrugas y mejorar la firmeza", // Ajustado para encajar con el nuevo paso
                   "Calmar rojeces y sensibilidad"
                 ].map((option, idx) => (
                   <button
@@ -156,6 +183,7 @@ export default function DescubreTuPiel() {
             </div>
           )}
 
+          {/* PASO 3 */}
           {!resultReady && !loadingResult && step === 3 && (
             <div>
               <span className="text-xs font-bold text-[#E50000] uppercase tracking-wider bg-red-50 px-3 py-1 rounded-full">
@@ -182,14 +210,16 @@ export default function DescubreTuPiel() {
             </div>
           )}
 
+          {/* ESTADO DE CARGA */}
           {loadingResult && (
             <div className="text-center py-16">
               <Sparkles className="text-[#E50000] animate-spin mx-auto mb-6" size={48} />
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">Buscando en nuestro inventario...</h3>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">Diseñando tu rutina...</h3>
               <p className="text-gray-500">Filtrando los mejores productos para tu tipo de piel.</p>
             </div>
           )}
 
+          {/* RESULTADOS */}
           {resultReady && (
             <div className="animate-in fade-in duration-500">
               <div className="text-center mb-8">
@@ -198,31 +228,79 @@ export default function DescubreTuPiel() {
                 </span>
                 <h2 className="text-3xl font-extrabold text-gray-900">Tu Rutina Yosoy Ideal</h2>
                 <p className="text-gray-600 mt-2 text-sm">
-                  Perfil detectado: <span className="font-semibold text-gray-900">{skinType}</span> con objetivo de <span className="font-semibold text-gray-900">{skinGoal.toLowerCase()}</span>.
+                  Perfil detectado: <span className="font-semibold text-gray-900">{skinType.split('(')[0].trim()}</span> con objetivo de <span className="font-semibold text-gray-900">{skinGoal.toLowerCase()}</span>.
                 </p>
               </div>
 
               <div className="space-y-4 mb-8">
-                <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">Productos sugeridos para ti:</p>
+                <p className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Productos sugeridos para ti:</p>
+                
                 {recommendedProducts.length === 0 ? (
                   <div className="text-center py-8 bg-gray-50 rounded-2xl p-6 border border-gray-100">
                     <p className="text-gray-600 font-medium mb-2">¡Pronto tendremos productos específicos para este tipo de piel!</p>
                     <p className="text-xs text-gray-400">Mientras tanto, puedes explorar todo nuestro catálogo general.</p>
                   </div>
                 ) : (
-                  recommendedProducts.map((prod) => (
-                    <Link href={`/producto/${prod.slug}`} key={prod.id} className="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 hover:border-[#E50000] hover:bg-red-50/10 transition-all group">
-                      <img src={prod.image_urls?.[0] || prod.image_url} alt={prod.name} className="w-16 h-16 object-contain rounded-lg bg-gray-50 p-1 border border-gray-100" />
-                      <div className="flex-grow">
-                        <p className="text-xs font-bold text-gray-400 uppercase">{prod.brand}</p>
-                        <h4 className="font-bold text-gray-900 group-hover:text-[#E50000] transition-colors">{prod.name}</h4>
-                        <p className="text-sm font-extrabold text-gray-900 mt-1">RD${prod.price.toLocaleString()}</p>
-                      </div>
-                    </Link>
-                  ))
+                  recommendedProducts.map((prod) => {
+                    const isOutofStock = prod.stock <= 0;
+                    const hasDiscount = prod.discount_price && prod.discount_price > 0 && !isOutofStock;
+
+                    return (
+                      <Link 
+                        href={`/producto/${prod.slug}`} 
+                        key={prod.id} 
+                        className={`flex items-center gap-4 p-4 rounded-2xl border ${isOutofStock ? 'border-gray-100 opacity-80' : 'border-gray-100 hover:border-[#E50000] hover:bg-red-50/10'} transition-all group relative overflow-hidden`}
+                      >
+                        {/* IMAGEN DEL PRODUCTO (Estilo catálogo) */}
+                        <div className="relative w-20 h-20 flex-shrink-0 bg-white rounded-xl p-2 border border-gray-100">
+                          <img 
+                            src={prod.image_urls?.[0] || prod.image_url} 
+                            alt={prod.name} 
+                            className={`w-full h-full object-contain mix-blend-multiply ${isOutofStock ? 'opacity-50' : ''}`} 
+                          />
+                          {isOutofStock && (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                              <span className="bg-[#E50000] text-white font-bold px-1.5 py-0.5 rounded text-[8px] tracking-widest shadow-md text-center">
+                                AGOTADO
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* DETALLES DEL PRODUCTO */}
+                        <div className="flex-grow min-w-0">
+                          <div className="flex justify-between items-start mb-1">
+                            <p className="text-xs font-bold text-gray-400 uppercase truncate">{prod.brand}</p>
+                            {prod.category && (
+                              <span className="text-[10px] font-bold text-[#E50000] bg-red-50 border border-red-100 px-2 py-0.5 rounded-md uppercase tracking-wide whitespace-nowrap ml-2">
+                                {prod.category}
+                              </span>
+                            )}
+                          </div>
+                          
+                          <h4 className={`font-bold line-clamp-1 transition-colors ${isOutofStock ? 'text-gray-500' : 'text-gray-900 group-hover:text-[#E50000]'}`}>
+                            {prod.name}
+                          </h4>
+                          
+                          {/* PRECIOS */}
+                          {hasDiscount ? (
+                            <div className="flex items-baseline gap-2 mt-1">
+                              <p className="text-sm font-extrabold text-[#E50000]">RD${prod.discount_price.toLocaleString()}</p>
+                              <p className="text-xs font-semibold text-gray-400 line-through">RD${prod.price.toLocaleString()}</p>
+                            </div>
+                          ) : (
+                            <p className={`text-sm font-extrabold mt-1 ${isOutofStock ? 'text-gray-400' : 'text-gray-900'}`}>
+                              RD${prod.price.toLocaleString()}
+                            </p>
+                          )}
+                        </div>
+                      </Link>
+                    );
+                  })
                 )}
               </div>
 
+              {/* BOTONES FINALES */}
               <div className="flex flex-col sm:flex-row gap-4">
                 <button 
                   onClick={resetQuiz}

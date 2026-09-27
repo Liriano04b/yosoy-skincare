@@ -2,15 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Package, Plus, LogOut, Trash2, Edit } from "lucide-react";
+import { Package, Plus, LogOut, Trash2, Edit, Sparkles, Layers } from "lucide-react";
+import Link from "next/link"; // Asegúrate de importar Link si no lo tienes
 
 export default function Dashboard() {
+  const [activeTab, setActiveTab] = useState<"products" | "routines">("products");
   const [products, setProducts] = useState<any[]>([]);
+  const [routines, setRoutines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     checkUser();
-    fetchProducts();
+    fetchData();
   }, []);
 
   const checkUser = async () => {
@@ -20,13 +23,20 @@ export default function Dashboard() {
     }
   };
 
-  const fetchProducts = async () => {
-    const { data, error } = await supabase
+  const fetchData = async () => {
+    setLoading(true);
+    const { data: prodData } = await supabase
       .from("products")
       .select("*")
       .order("created_at", { ascending: false });
     
-    if (data) setProducts(data);
+    const { data: routData } = await supabase
+      .from("routines")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (prodData) setProducts(prodData);
+    if (routData) setRoutines(routData);
     setLoading(false);
   };
 
@@ -35,17 +45,24 @@ export default function Dashboard() {
     window.location.href = "/admin";
   };
 
-  const handleDelete = async (id: string, imageUrl: string) => {
-    if (!window.confirm("¿Estás seguro de que deseas eliminar este producto permanentemente?")) return;
-
+  const handleDeleteProduct = async (id: string) => {
+    if (!window.confirm("¿Estás seguro de que deseas eliminar este producto?")) return;
     const { error } = await supabase.from("products").delete().eq("id", id);
-    
-    if (error) {
-      alert("Error al eliminar: " + error.message);
-    } else {
-      fetchProducts();
-    }
+    if (error) alert("Error al eliminar: " + error.message);
+    else fetchData();
   };
+
+  const handleDeleteRoutine = async (id: number) => {
+    if (!window.confirm("¿Estás seguro de que deseas eliminar esta rutina?")) return;
+    const { error } = await supabase.from("routines").delete().eq("id", id);
+    if (error) alert("Error al eliminar: " + error.message);
+    else fetchData();
+  };
+
+  const totalProductsCount = products.length;
+  const availableProductsCount = products.filter(p => p.stock > 0).length;
+  const outOfStockCount = products.filter(p => p.stock <= 0).length;
+  const totalUnitsCount = products.reduce((acc, curr) => acc + (Number(curr.stock) || 0), 0);
 
   if (loading) return <div className="p-10 text-center text-gray-500">Cargando panel...</div>;
 
@@ -60,101 +77,213 @@ export default function Dashboard() {
         <div className="flex items-center gap-4">
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors text-sm"
           >
             <LogOut size={18} />
             Cerrar Sesión
           </button>
           
-          <button
-            onClick={() => window.location.href = "/admin/dashboard/nuevo"}
-            className="bg-[#E50000] text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-red-700 transition-colors shadow-sm"
-          >
-            <Plus size={18} />
-            Agregar Producto
-          </button>
+          {/* BOTÓN DINÁMICO CORREGIDO SEGÚN LA PESTAÑA ACTIVA */}
+          {activeTab === "products" ? (
+            <Link
+              href="/admin/dashboard/nuevo"
+              className="bg-[#E50000] text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-red-700 transition-colors shadow-sm text-sm"
+            >
+              <Plus size={18} />
+              Agregar Producto
+            </Link>
+          ) : (
+            <Link
+              href="/admin/dashboard/nueva-rutina"
+              className="bg-[#E50000] text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-red-700 transition-colors shadow-sm text-sm"
+            >
+              <Plus size={18} />
+              Agregar Rutina
+            </Link>
+          )}
         </div>
       </nav>
 
       <main className="max-w-6xl mx-auto p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
-            <p className="text-sm text-gray-500 font-medium">Total Productos</p>
-            <p className="text-3xl font-bold text-gray-900 mt-2">{products.length}</p>
-          </div>
-          <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
-            <p className="text-sm text-gray-500 font-medium">Disponibles</p>
-            <p className="text-3xl font-bold text-green-600 mt-2">
-              {products.filter(p => p.stock > 0).length}
-            </p>
-          </div>
-          <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
-            <p className="text-sm text-gray-500 font-medium">Agotados</p>
-            <p className="text-3xl font-bold text-red-600 mt-2">
-              {products.filter(p => p.stock === 0).length}
-            </p>
-          </div>
+        {/* PESTAÑAS DE NAVEGACIÓN */}
+        <div className="flex gap-4 mb-8 border-b border-gray-200 pb-4">
+          <button
+            onClick={() => setActiveTab("products")}
+            className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${
+              activeTab === "products"
+                ? "bg-[#E50000] text-white shadow-md shadow-red-200"
+                : "bg-white text-gray-600 border border-gray-200 hover:border-gray-300"
+            }`}
+          >
+            Inventario de Productos ({products.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("routines")}
+            className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
+              activeTab === "routines"
+                ? "bg-[#E50000] text-white shadow-md shadow-red-200"
+                : "bg-white text-gray-600 border border-gray-200 hover:border-gray-300"
+            }`}
+          >
+            <Sparkles size={16} /> Rutinas Publicadas ({routines.length})
+          </button>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          {products.length === 0 ? (
-            <div className="p-12 text-center text-gray-500">
-              No hay productos registrados todavía. Haz clic en "Agregar Producto" para comenzar.
+        {/* MÉTRICAS DE PRODUCTOS */}
+        {activeTab === "products" && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+              <p className="text-sm text-gray-500 font-medium">Tipos de Productos</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{totalProductsCount}</p>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-gray-600">
-                <thead className="bg-gray-50 border-b border-gray-100 text-gray-700">
-                  <tr>
-                    <th className="p-4 font-medium">Producto</th>
-                    <th className="p-4 font-medium">Precio</th>
-                    <th className="p-4 font-medium">Stock</th>
-                    <th className="p-4 font-medium text-center">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {products.map((product) => (
-                    <tr key={product.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="p-4 flex items-center gap-3">
-                        {product.image_urls?.[0] || product.image_url ? (
-                          <img src={product.image_urls?.[0] || product.image_url} alt={product.name} className="w-10 h-10 rounded-md object-cover border border-gray-200 bg-white" />
-                        ) : (
-                          <div className="w-10 h-10 rounded-md bg-gray-100 flex items-center justify-center text-gray-400 text-[10px]">Sin img</div>
-                        )}
-                        <div>
-                          <p className="font-medium text-gray-900">{product.name}</p>
-                          <p className="text-xs text-gray-500">{product.brand}</p>
-                        </div>
-                      </td>
-                      <td className="p-4">RD${product.price.toLocaleString()}</td>
-                      <td className="p-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${product.stock > 0 ? 'bg-blue-50 text-blue-700' : 'bg-red-50 text-red-700'}`}>
-                          {product.stock} unds
-                        </span>
-                      </td>
-                      <td className="p-4 flex justify-center items-center gap-1">
-                        <button 
-                          onClick={() => window.location.href = `/admin/dashboard/editar/${product.slug}`}
-                          className="text-gray-400 hover:text-blue-600 transition-colors p-2 rounded-md hover:bg-blue-50"
-                          title="Editar producto"
-                        >
-                          <Edit size={18} />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(product.id, product.image_url)}
-                          className="text-gray-400 hover:text-[#E50000] transition-colors p-2 rounded-md hover:bg-red-50"
-                          title="Eliminar producto"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </td>
+            <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+              <p className="text-sm text-gray-500 font-medium">Disponibles</p>
+              <p className="text-3xl font-bold text-green-600 mt-2">{availableProductsCount}</p>
+            </div>
+            <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+              <p className="text-sm text-gray-500 font-medium">Agotados</p>
+              <p className="text-3xl font-bold text-[#E50000] mt-2">{outOfStockCount}</p>
+            </div>
+            <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+              <p className="text-sm text-gray-500 font-medium flex items-center gap-1.5">
+                <Layers size={16} className="text-[#E50000]" /> Total Artículos (Stock)
+              </p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{totalUnitsCount} unds</p>
+            </div>
+          </div>
+        )}
+
+        {/* TABLA DE PRODUCTOS */}
+        {activeTab === "products" && (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            {products.length === 0 ? (
+              <div className="p-12 text-center text-gray-500">No hay productos registrados todavía.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm text-gray-600">
+                  <thead className="bg-gray-50 border-b border-gray-100 text-gray-700">
+                    <tr>
+                      <th className="p-4 font-medium">Producto</th>
+                      <th className="p-4 font-medium">Categoría</th>
+                      <th className="p-4 font-medium">Precio</th>
+                      <th className="p-4 font-medium">Stock</th>
+                      <th className="p-4 font-medium text-center">Acciones</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {products.map((product) => (
+                      <tr key={product.id} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="p-4 flex items-center gap-3">
+                          {product.image_urls?.[0] || product.image_url ? (
+                            <img src={product.image_urls?.[0] || product.image_url} alt={product.name} className="w-10 h-10 rounded-md object-cover border border-gray-200 bg-white" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-md bg-gray-100 flex items-center justify-center text-gray-400 text-[10px]">Sin img</div>
+                          )}
+                          <div>
+                            <p className="font-medium text-gray-900">{product.name}</p>
+                            <p className="text-xs text-gray-500">{product.brand}</p>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <span className="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-md text-xs font-semibold uppercase tracking-wider">
+                            {product.category || "General"}
+                          </span>
+                        </td>
+                        <td className="p-4">
+                          {product.discount_price && product.discount_price > 0 ? (
+                            <div className="flex flex-col">
+                              <span className="text-[#E50000] font-bold">RD${product.discount_price.toLocaleString()}</span>
+                              <span className="text-gray-400 line-through text-[11px]">RD${product.price.toLocaleString()}</span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-900 font-medium">RD${product.price.toLocaleString()}</span>
+                          )}
+                        </td>
+                        <td className="p-4">
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${product.stock > 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-[#E50000]'}`}>
+                            {product.stock > 0 ? `${product.stock} unds` : 'AGOTADO'}
+                          </span>
+                        </td>
+                        <td className="p-4 flex justify-center items-center gap-1">
+                          <button 
+                            onClick={() => window.location.href = `/admin/dashboard/editar/${product.slug}`}
+                            className="text-gray-400 hover:text-blue-600 transition-colors p-2 rounded-md hover:bg-blue-50"
+                            title="Editar"
+                          >
+                            <Edit size={18} />
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteProduct(product.id)}
+                            className="text-gray-400 hover:text-[#E50000] transition-colors p-2 rounded-md hover:bg-red-50"
+                            title="Eliminar"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TABLA DE RUTINAS */}
+        {activeTab === "routines" && (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            {routines.length === 0 ? (
+              <div className="p-12 text-center text-gray-500">No hay rutinas registradas todavía. Haz clic en "Agregar Rutina".</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm text-gray-600">
+                  <thead className="bg-gray-50 border-b border-gray-100 text-gray-700">
+                    <tr>
+                      <th className="p-4 font-medium">Rutina / Kit</th>
+                      <th className="p-4 font-medium">Tipo de Piel</th>
+                      <th className="p-4 font-medium">Precio del Kit</th>
+                      <th className="p-4 font-medium text-center">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {routines.map((routine) => (
+                      <tr key={routine.id} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="p-4 flex items-center gap-3">
+                          {routine.image_url ? (
+                            <img src={routine.image_url} alt={routine.title} className="w-10 h-10 rounded-md object-cover border border-gray-200 bg-white" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-md bg-gray-100 flex items-center justify-center text-gray-400 text-[10px]">Sin img</div>
+                          )}
+                          <div>
+                            <p className="font-medium text-gray-900">{routine.title}</p>
+                            <p className="text-xs text-gray-500 line-clamp-1">{routine.description}</p>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <span className="bg-blue-50 text-blue-600 px-2.5 py-1 rounded-md text-xs font-semibold uppercase tracking-wider">
+                            {routine.skin_type_tag || "General"}
+                          </span>
+                        </td>
+                        <td className="p-4 font-extrabold text-gray-900">
+                          RD${routine.price?.toLocaleString()}
+                        </td>
+                        <td className="p-4 flex justify-center items-center gap-1">
+                          <button 
+                            onClick={() => handleDeleteRoutine(routine.id)}
+                            className="text-gray-400 hover:text-[#E50000] transition-colors p-2 rounded-md hover:bg-red-50"
+                            title="Eliminar"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );
