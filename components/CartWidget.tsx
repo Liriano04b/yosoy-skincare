@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { ShoppingCart, X, Plus, Minus } from "lucide-react";
@@ -7,8 +6,7 @@ import { ShoppingCart, X, Plus, Minus } from "lucide-react";
 export default function CartWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const { cart, removeFromCart, updateQuantity, totalItems, totalPrice } = useCart();
-
-  // Cambia este número por el WhatsApp de ventas de Yosoy Skincare (incluye el código de país, ej: 1829...)
+  
   const WHATSAPP_NUMBER = "18299183389"; 
 
   const handleCheckout = () => {
@@ -16,10 +14,9 @@ export default function CartWidget() {
     
     let message = "¡Hola! Me gustaría hacer un pedido en Yosoy Skincare:%0A%0A";
     cart.forEach((item) => {
-      message += `- ${item.quantity}x ${item.name} ($${item.price})%0A`;
+      message += `- ${item.quantity}x ${item.name} (RD$${(item.price * item.quantity).toLocaleString()})%0A`;
     });
-    message += `%0A*Total: $${totalPrice}*`;
-
+    message += `%0A*Total: RD$${totalPrice.toLocaleString()}*`;
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, "_blank");
   };
 
@@ -68,7 +65,8 @@ export default function CartWidget() {
                     <img src={item.image_url} alt={item.name} className="w-20 h-20 object-cover rounded-xl border border-gray-100" />
                     <div className="flex-1">
                       <h4 className="font-bold text-gray-900 leading-tight">{item.name}</h4>
-                      <p className="text-[#E50000] font-semibold mt-1">${item.price}</p>
+                      {/* Precio con formato de comas */}
+                      <p className="text-[#E50000] font-semibold mt-1">RD${(item.price * item.quantity).toLocaleString()}</p>
                       <div className="flex items-center gap-3 mt-3">
                         <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="bg-gray-100 p-1.5 rounded-md hover:bg-gray-200 text-gray-700"><Minus size={14} /></button>
                         <span className="font-bold text-gray-900 w-4 text-center">{item.quantity}</span>
@@ -88,7 +86,8 @@ export default function CartWidget() {
               <div className="p-6 border-t border-gray-100 bg-gray-50">
                 <div className="flex justify-between mb-6 text-xl font-bold text-gray-900">
                   <span>Total:</span>
-                  <span>${totalPrice}</span>
+                  {/* Total con formato de comas */}
+                  <span>RD${totalPrice.toLocaleString()}</span>
                 </div>
                 <button 
                   onClick={handleCheckout}
