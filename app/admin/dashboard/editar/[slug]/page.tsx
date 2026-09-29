@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { ArrowLeft, Save, Upload, X } from "lucide-react";
@@ -9,25 +8,25 @@ export default function EditarProducto() {
   const params = useParams();
   const router = useRouter();
   const urlParam = params?.slug;
-
   const [id, setId] = useState("");
   const [name, setName] = useState("");
   const [brand, setBrand] = useState("");
   const [price, setPrice] = useState("");
-  const [discountPrice, setDiscountPrice] = useState(""); // NUEVO: Estado para precio de oferta
+  const [discountPrice, setDiscountPrice] = useState("");
   const [stock, setStock] = useState("");
-  
   const [description, setDescription] = useState("");
   const [ingredients, setIngredients] = useState("");
   const [howToUse, setHowToUse] = useState("");
   const [skinType, setSkinType] = useState("Todo tipo de piel");
   const [category, setCategory] = useState("Serum");
-  
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [newImages, setNewImages] = useState<File[]>([]);
-  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // NUEVOS ESTADOS: Autocompletado de marcas
+  const [existingBrands, setExistingBrands] = useState<string[]>([]);
+  const [showBrandSuggestions, setShowBrandSuggestions] = useState(false);
 
   useEffect(() => {
     if (urlParam) {
@@ -35,18 +34,30 @@ export default function EditarProducto() {
     }
   }, [urlParam]);
 
+  // NUEVO EFECTO: Buscar marcas existentes al cargar la página
+  useEffect(() => {
+    const fetchBrands = async () => {
+      const { data } = await supabase.from('products').select('brand');
+      if (data) {
+        const uniqueBrands = Array.from(
+          new Set(data.map((p: any) => p.brand?.trim().toUpperCase()).filter(Boolean))
+        );
+        setExistingBrands(uniqueBrands as string[]);
+      }
+    };
+    fetchBrands();
+  }, []);
+
   const fetchProductData = async () => {
     const { data, error } = await supabase
       .from("products")
       .select("*")
       .eq("slug", urlParam)
       .single();
-
     if (error) {
       alert("Error al cargar producto: " + error.message);
       return;
     }
-
     if (data) {
       setId(data.id);
       setName(data.name || "");
@@ -59,7 +70,6 @@ export default function EditarProducto() {
       setHowToUse(data.how_to_use || "");
       setSkinType(data.skin_type || "Todo tipo de piel");
       setCategory(data.category || "Serum");
-
       if (data.image_urls && data.image_urls.length > 0) {
         setExistingImages(data.image_urls);
       } else if (data.image_url) {
@@ -91,37 +101,30 @@ export default function EditarProducto() {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (existingImages.length === 0 && newImages.length === 0) {
       alert("Por favor, mantén o selecciona al menos una fotografía.");
       return;
     }
-
     setSaving(true);
     try {
       const final_urls: string[] = [...existingImages];
-
       for (const img of newImages) {
         const fileExt = img.name.split('.').pop();
         const fileName = `${Math.random()}.${fileExt}`;
         const { error: uploadError } = await supabase.storage
           .from('productos')
           .upload(fileName, img);
-
         if (uploadError) throw new Error(`Error al subir imagen: ${uploadError.message}`);
-
         const { data: publicUrlData } = supabase.storage
           .from('productos')
           .getPublicUrl(fileName);
-          
         final_urls.push(publicUrlData.publicUrl);
       }
-
       const { error: updateError } = await supabase
         .from('products')
         .update({
           name,
-          brand,
+          brand: brand.trim(), // Nos aseguramos de guardarlo limpio sin espacios extras
           price: parseFloat(price),
           discount_price: discountPrice ? parseFloat(discountPrice) : null,
           stock: parseInt(stock),
@@ -130,15 +133,13 @@ export default function EditarProducto() {
           ingredients,
           how_to_use: howToUse,
           skin_type: skinType,
-          image_url: final_urls[0] || "", 
-          image_urls: final_urls 
+          image_url: final_urls[0] || "",
+          image_urls: final_urls
         })
         .eq('id', id);
-
       if (updateError) {
         throw new Error(`Error al actualizar producto: ${updateError.message}`);
       }
-
       alert("¡Producto actualizado con éxito!");
       router.push("/admin/dashboard");
     } catch (error: any) {
@@ -153,8 +154,8 @@ export default function EditarProducto() {
   return (
     <div className="min-h-screen bg-[#FAFAFA] p-4 md:p-6">
       <div className="max-w-4xl mx-auto">
-        <button 
-          onClick={() => router.push('/admin/dashboard')} 
+        <button
+          onClick={() => router.push('/admin/dashboard')}
           className="flex items-center gap-2 text-gray-500 hover:text-gray-900 mb-4 md:mb-6 transition-colors text-sm md:text-base"
         >
           <ArrowLeft size={20} />
@@ -166,7 +167,6 @@ export default function EditarProducto() {
             <p className="text-xs md:text-sm text-gray-500 mt-1">Modifica los detalles del producto, gestiona sus fotografías y asigna su clasificación.</p>
           </div>
           <form onSubmit={handleUpdate} className="p-5 md:p-8 space-y-6 md:space-y-8">
-            
             {/* FOTOGRAFÍAS */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Fotografías del Producto (Máx 5 en total)</label>
@@ -180,7 +180,6 @@ export default function EditarProducto() {
                   <span className="text-xs text-gray-500 mt-1">PNG, JPG (Varias a la vez)</span>
                 </label>
               </div>
-
               {(existingImages.length > 0 || newImages.length > 0) && (
                 <div className="flex gap-3 flex-wrap">
                   {existingImages.map((url, index) => (
@@ -204,86 +203,125 @@ export default function EditarProducto() {
                 </div>
               )}
             </div>
-
             {/* DATOS PRINCIPALES */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Nombre del Producto</label>
                 <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 placeholder-gray-400 bg-white text-sm md:text-base" placeholder="Ej. Serum de Vitamina C" />
               </div>
-              <div>
+              
+              {/* CAMPO DE MARCA CON AUTOCOMPLETADO */}
+              <div className="relative">
                 <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Marca</label>
-                <input type="text" required value={brand} onChange={(e) => setBrand(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 placeholder-gray-400 bg-white text-sm md:text-base" placeholder="Ej. Yosoy Skincare" />
+                <input 
+                  type="text" 
+                  required 
+                  value={brand} 
+                  onChange={(e) => {
+                    setBrand(e.target.value.toUpperCase());
+                    setShowBrandSuggestions(true);
+                  }} 
+                  onFocus={() => setShowBrandSuggestions(true)}
+                  onBlur={() => {
+                    setBrand(brand.trim());
+                    setTimeout(() => setShowBrandSuggestions(false), 200);
+                  }} 
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 placeholder-gray-400 bg-white text-sm md:text-base" 
+                  placeholder="Ej. YOSOY SKINCARE" 
+                  autoComplete="off"
+                />
+                
+                {showBrandSuggestions && existingBrands.length > 0 && (
+                  <ul className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                    {existingBrands
+                      .filter(b => b.includes(brand))
+                      .map((b, index) => (
+                        <li 
+                          key={index}
+                          onMouseDown={() => {
+                            setBrand(b);
+                            setShowBrandSuggestions(false);
+                          }}
+                          className="px-4 py-2.5 hover:bg-gray-50 hover:text-[#E50000] cursor-pointer text-sm text-gray-700 font-medium transition-colors border-b border-gray-50 last:border-0"
+                        >
+                          {b}
+                        </li>
+                    ))}
+                    
+                    {brand && !existingBrands.some(b => b === brand) && (
+                      <li className="px-4 py-2.5 text-xs text-gray-400 bg-gray-50">
+                        Se registrará como nueva marca
+                      </li>
+                    )}
+                  </ul>
+                )}
               </div>
-            </div>
 
-            {/* PRECIO, OFERTA E INVENTARIO */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Precio Regular (RD$)</label>
-                <input type="number" required value={price} onChange={(e) => setPrice(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 placeholder-gray-400 bg-white text-sm md:text-base" placeholder="0.00" />
+              {/* PRECIO, OFERTA E INVENTARIO */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Precio Regular (RD$)</label>
+                  <input type="number" required value={price} onChange={(e) => setPrice(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 placeholder-gray-400 bg-white text-sm md:text-base" placeholder="0.00" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Precio Oferta (Opcional)</label>
+                  <input type="number" value={discountPrice} onChange={(e) => setDiscountPrice(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-[#E50000] placeholder-gray-400 bg-red-50 text-sm md:text-base font-semibold" placeholder="0.00" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Inventario</label>
+                  <input type="number" required value={stock} onChange={(e) => setStock(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 placeholder-gray-400 bg-white text-sm md:text-base" placeholder="Cantidad" />
+                </div>
+              </div>
+              {/* CLASIFICACIÓN Y TIPO DE PIEL */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Clasificación</label>
+                  <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 bg-white text-sm md:text-base">
+                    <option value="Limpiador">Limpiador</option>
+                    <option value="Tónico">Tónico</option>
+                    <option value="Serum">Serum</option>
+                    <option value="Crema Hidratante">Crema Hidratante</option>
+                    <option value="Protector Solar">Protector Solar</option>
+                    <option value="Contorno de Ojos">Contorno de Ojos</option>
+                    <option value="Exfoliante">Exfoliante</option>
+                    <option value="Mascarilla">Mascarilla</option>
+                    <option value="Tratamiento">Tratamiento Específico</option>
+                    <option value="Otro">Otro</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Tipo de Piel</label>
+                  <select value={skinType} onChange={(e) => setSkinType(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 bg-white text-sm md:text-base">
+                    <option value="Todo tipo de piel">Todo tipo de piel</option>
+                    <option value="Piel Seca">Piel Seca</option>
+                    <option value="Piel Grasa">Piel Grasa</option>
+                    <option value="Piel Mixta">Piel Mixta</option>
+                    <option value="Piel Sensible">Piel Sensible</option>
+                    <option value="Piel con tendencia acnéica">Tendencia acnéica</option>
+                    <option value="Piel con manchas">Piel con manchas</option>
+                    <option value="Linea de expresión">Linea de expresión</option>
+                  </select>
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Precio Oferta (Opcional)</label>
-                <input type="number" value={discountPrice} onChange={(e) => setDiscountPrice(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-[#E50000] placeholder-gray-400 bg-red-50 text-sm md:text-base font-semibold" placeholder="0.00" />
+                <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Descripción Detallada</label>
+                <textarea required rows={4} value={description} onChange={(e) => setDescription(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 placeholder-gray-400 bg-white text-sm md:text-base resize-none" placeholder="Describe los beneficios principales..." />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Inventario</label>
-                <input type="number" required value={stock} onChange={(e) => setStock(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 placeholder-gray-400 bg-white text-sm md:text-base" placeholder="Cantidad" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Ingredientes Clave</label>
+                  <textarea required rows={4} value={ingredients} onChange={(e) => setIngredients(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 placeholder-gray-400 bg-white text-sm md:text-base resize-none" placeholder="Ej. Ácido Hialurónico al 2%..." />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Modo de Uso</label>
+                  <textarea required rows={4} value={howToUse} onChange={(e) => setHowToUse(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 placeholder-gray-400 bg-white text-sm md:text-base resize-none" placeholder="Ej. Aplicar 3 a 4 gotas sobre el rostro limpio..." />
+                </div>
               </div>
-            </div>
-
-            {/* CLASIFICACIÓN Y TIPO DE PIEL */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Clasificación</label>
-                <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 bg-white text-sm md:text-base">
-                  <option value="Limpiador">Limpiador</option>
-                  <option value="Tónico">Tónico</option>
-                  <option value="Serum">Serum</option>
-                  <option value="Crema Hidratante">Crema Hidratante</option>
-                  <option value="Protector Solar">Protector Solar</option>
-                  <option value="Contorno de Ojos">Contorno de Ojos</option>
-                  <option value="Exfoliante">Exfoliante</option>
-                  <option value="Mascarilla">Mascarilla</option>
-                  <option value="Tratamiento">Tratamiento Específico</option>
-                  <option value="Otro">Otro</option>
-                </select>
+              <div className="pt-6 border-t border-gray-100 flex justify-end w-full md:col-span-2">
+                <button type="submit" disabled={saving} className="w-full md:w-auto bg-[#E50000] hover:bg-red-700 text-white px-8 py-3.5 md:py-3 rounded-lg font-medium transition-colors flex justify-center items-center gap-2 shadow-sm disabled:opacity-70 text-base md:text-md">
+                  {saving ? "Actualizando..." : <><Save size={20} /> Guardar Cambios</>}
+                </button>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Tipo de Piel</label>
-                <select value={skinType} onChange={(e) => setSkinType(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 bg-white text-sm md:text-base">
-                  <option value="Todo tipo de piel">Todo tipo de piel</option>
-                  <option value="Piel Seca">Piel Seca</option>
-                  <option value="Piel Grasa">Piel Grasa</option>
-                  <option value="Piel Mixta">Piel Mixta</option>
-                  <option value="Piel Sensible">Piel Sensible</option>
-                  <option value="Piel con tendencia acnéica">Tendencia acnéica</option>
-                  <option value="Piel con manchas">Piel con manchas</option>
-                  <option value="Linea de expresión">Linea de expresión</option>
-                </select>
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Descripción Detallada</label>
-              <textarea required rows={4} value={description} onChange={(e) => setDescription(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 placeholder-gray-400 bg-white text-sm md:text-base resize-none" placeholder="Describe los beneficios principales..." />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Ingredientes Clave</label>
-                <textarea required rows={4} value={ingredients} onChange={(e) => setIngredients(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 placeholder-gray-400 bg-white text-sm md:text-base resize-none" placeholder="Ej. Ácido Hialurónico al 2%..." />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Modo de Uso</label>
-                <textarea required rows={4} value={howToUse} onChange={(e) => setHowToUse(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 placeholder-gray-400 bg-white text-sm md:text-base resize-none" placeholder="Ej. Aplicar 3 a 4 gotas sobre el rostro limpio..." />
-              </div>
-            </div>
-            
-            <div className="pt-6 border-t border-gray-100 flex justify-end">
-              <button type="submit" disabled={saving} className="w-full md:w-auto bg-[#E50000] hover:bg-red-700 text-white px-8 py-3.5 md:py-3 rounded-lg font-medium transition-colors flex justify-center items-center gap-2 shadow-sm disabled:opacity-70 text-base md:text-md">
-                {saving ? "Actualizando..." : <><Save size={20} /> Guardar Cambios</>}
-              </button>
             </div>
           </form>
         </div>

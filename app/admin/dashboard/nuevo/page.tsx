@@ -1,6 +1,5 @@
 "use client";
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { ArrowLeft, Upload, Save, X } from "lucide-react";
 
@@ -19,6 +18,25 @@ export default function NuevoProducto() {
   
   const [images, setImages] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Estados para el autocompletado de marcas
+  const [existingBrands, setExistingBrands] = useState<string[]>([]);
+  const [showBrandSuggestions, setShowBrandSuggestions] = useState(false);
+
+  // Buscar marcas existentes al cargar la página
+  useEffect(() => {
+    const fetchBrands = async () => {
+      const { data } = await supabase.from('products').select('brand');
+      if (data) {
+        // Filtramos para obtener marcas únicas, en mayúsculas y sin espacios
+        const uniqueBrands = Array.from(
+          new Set(data.map((p: any) => p.brand?.trim().toUpperCase()).filter(Boolean))
+        );
+        setExistingBrands(uniqueBrands as string[]);
+      }
+    };
+    fetchBrands();
+  }, []);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -49,31 +67,32 @@ export default function NuevoProducto() {
         .replace(/[\u0300-\u036f]/g, "")
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)+/g, '');
-
+        
       const uploaded_urls: string[] = [];
+      
       for (const img of images) {
         const fileExt = img.name.split('.').pop();
         const fileName = `${Math.random()}.${fileExt}`;
         const { error: uploadError } = await supabase.storage
           .from('productos')
           .upload(fileName, img);
-
+          
         if (uploadError) {
           throw new Error(`Error al subir imagen: ${uploadError.message}`);
         }
-
+        
         const { data: publicUrlData } = supabase.storage
           .from('productos')
           .getPublicUrl(fileName);
           
         uploaded_urls.push(publicUrlData.publicUrl);
       }
-
+      
       const { error: insertError } = await supabase.from('products').insert([
         {
           name,
           slug,
-          brand,
+          brand: brand.trim(), // Nos aseguramos de guardarlo limpio
           price: parseFloat(price),
           discount_price: discountPrice ? parseFloat(discountPrice) : null,
           stock: parseInt(stock),
@@ -86,11 +105,11 @@ export default function NuevoProducto() {
           image_urls: uploaded_urls 
         }
       ]);
-
+      
       if (insertError) {
         throw new Error(`Error al crear producto: ${insertError.message}`);
       }
-
+      
       alert("¡Producto creado con éxito!");
       window.location.href = "/admin/dashboard";
     } catch (error: any) {
@@ -110,11 +129,13 @@ export default function NuevoProducto() {
           <ArrowLeft size={20} />
           Volver al inventario
         </button>
+        
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="p-5 md:p-6 border-b border-gray-100 bg-white">
             <h1 className="text-lg md:text-xl font-bold text-gray-900">Agregar Nuevo Producto</h1>
             <p className="text-xs md:text-sm text-gray-500 mt-1">Completa los detalles y agrega hasta 5 fotografías.</p>
           </div>
+          
           <form onSubmit={handleSubmit} className="p-5 md:p-8 space-y-6 md:space-y-8">
             
             {/* FOTOGRAFÍAS */}
@@ -172,16 +193,52 @@ export default function NuevoProducto() {
                   placeholder="Ej. Serum de Vitamina C"
                 />
               </div>
-              <div>
+              
+              {/* CAMPO DE MARCA CON AUTOCOMPLETADO */}
+              <div className="relative">
                 <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Marca</label>
-                <input
-                  type="text"
-                  required
-                  value={brand}
-                  onChange={(e) => setBrand(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 placeholder-gray-400 bg-white text-sm md:text-base"
-                  placeholder="Ej. Yosoy Skincare"
+                <input 
+                  type="text" 
+                  required 
+                  value={brand} 
+                  onChange={(e) => {
+                    setBrand(e.target.value.toUpperCase());
+                    setShowBrandSuggestions(true);
+                  }} 
+                  onFocus={() => setShowBrandSuggestions(true)}
+                  onBlur={() => {
+                    setBrand(brand.trim());
+                    setTimeout(() => setShowBrandSuggestions(false), 200);
+                  }} 
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 placeholder-gray-400 bg-white text-sm md:text-base" 
+                  placeholder="Ej. YOSOY SKINCARE" 
+                  autoComplete="off"
                 />
+                
+                {showBrandSuggestions && existingBrands.length > 0 && (
+                  <ul className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                    {existingBrands
+                      .filter(b => b.includes(brand))
+                      .map((b, index) => (
+                        <li 
+                          key={index}
+                          onMouseDown={() => {
+                            setBrand(b);
+                            setShowBrandSuggestions(false);
+                          }}
+                          className="px-4 py-2.5 hover:bg-gray-50 hover:text-[#E50000] cursor-pointer text-sm text-gray-700 font-medium transition-colors border-b border-gray-50 last:border-0"
+                        >
+                          {b}
+                        </li>
+                    ))}
+                    
+                    {brand && !existingBrands.some(b => b === brand) && (
+                      <li className="px-4 py-2.5 text-xs text-gray-400 bg-gray-50">
+                        Se registrará como nueva marca
+                      </li>
+                    )}
+                  </ul>
+                )}
               </div>
             </div>
             
