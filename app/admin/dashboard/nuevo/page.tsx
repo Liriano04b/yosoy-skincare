@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { ArrowLeft, Upload, Save, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import TagPicker, { SKIN_TAG_OPTIONS, CONCERN_TAG_OPTIONS } from "@/components/admin/TagPicker";
-import { uploadImage } from "@/lib/images";
+import { deleteUnusedImages, uploadImage } from "@/lib/images";
 import { uniqueProductSlug } from "@/lib/slug";
 
 export default function NuevoProducto() {
@@ -67,11 +67,11 @@ export default function NuevoProducto() {
       return;
     }
     setLoading(true);
+    const uploaded_urls: string[] = [];
     try {
       // Si ya existe un producto con ese nombre, el enlace queda como "nombre-2" en vez de fallar
       const slug = await uniqueProductSlug(name);
 
-      const uploaded_urls: string[] = [];
       for (const img of images) {
         uploaded_urls.push(await uploadImage(img));
       }
@@ -103,6 +103,8 @@ export default function NuevoProducto() {
       alert("¡Producto creado con éxito!");
       router.push("/admin/dashboard");
     } catch (error) {
+      // Si falló el guardado, las fotos recién subidas quedarían sin dueño
+      await deleteUnusedImages(uploaded_urls);
       alert(error instanceof Error ? error.message : "No se pudo guardar el producto.");
     } finally {
       setLoading(false);

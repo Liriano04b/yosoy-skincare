@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { ArrowLeft, Save, Upload, X } from "lucide-react";
 import TagPicker, { SKIN_TAG_OPTIONS, CONCERN_TAG_OPTIONS } from "@/components/admin/TagPicker";
 import { useParams, useRouter } from "next/navigation";
-import { uploadImage } from "@/lib/images";
+import { deleteUnusedImages, uploadImage } from "@/lib/images";
 
 export default function EditarProducto() {
   const params = useParams();
@@ -24,6 +24,7 @@ export default function EditarProducto() {
   const [concerns, setConcerns] = useState<string[]>([]);
   const [category, setCategory] = useState("Serum");
   const [existingImages, setExistingImages] = useState<string[]>([]);
+  const [savedImages, setSavedImages] = useState<string[]>([]); // fotos guardadas al abrir la pantalla
   const [newImages, setNewImages] = useState<File[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -59,11 +60,9 @@ export default function EditarProducto() {
         setSkinTypes(data.skin_types ?? []);
         setConcerns(data.concerns ?? []);
         setCategory(data.category || "Serum");
-        if (data.image_urls && data.image_urls.length > 0) {
-          setExistingImages(data.image_urls);
-        } else if (data.image_url) {
-          setExistingImages([data.image_url]);
-        }
+        const saved: string[] = data.image_urls?.length ? data.image_urls : data.image_url ? [data.image_url] : [];
+        setExistingImages(saved);
+        setSavedImages(saved);
       }
       setLoading(false);
     };
@@ -111,10 +110,13 @@ export default function EditarProducto() {
       return;
     }
     setSaving(true);
+    const uploaded: string[] = [];
     try {
       const final_urls: string[] = [...existingImages];
       for (const img of newImages) {
-        final_urls.push(await uploadImage(img));
+        const url = await uploadImage(img);
+        uploaded.push(url);
+        final_urls.push(url);
       }
       const { error: updateError } = await supabase
         .from('products')
@@ -138,9 +140,13 @@ export default function EditarProducto() {
       if (updateError) {
         throw new Error(`Error al actualizar producto: ${updateError.message}`);
       }
+      // Las fotos que quitaste ya no las usa nadie: se borran del Storage
+      await deleteUnusedImages(savedImages);
       alert("¡Producto actualizado con éxito!");
       router.push("/admin/dashboard");
     } catch (error) {
+      // Si falló el guardado, las fotos recién subidas quedarían sin dueño
+      await deleteUnusedImages(uploaded);
       alert(error instanceof Error ? error.message : "No se pudo guardar el producto.");
     } finally {
       setSaving(false);

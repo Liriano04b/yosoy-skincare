@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { Package, Plus, Minus, LogOut, Trash2, Edit, Eye, Sparkles, Layers } from "lucide-react";
+import { Package, Plus, Minus, LogOut, Trash2, Edit, Eye, ImageOff, Sparkles, Layers } from "lucide-react";
 import Link from "next/link";
+import { deleteUnusedImages, findOrphanImages, removeImages } from "@/lib/images";
 
 type AdminProduct = {
   id: string;
@@ -35,6 +36,7 @@ export default function Dashboard() {
   const [routines, setRoutines] = useState<AdminRoutine[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingStockId, setSavingStockId] = useState<string | null>(null);
+  const [cleaning, setCleaning] = useState(false);
 
   // El acceso al panel lo protege app/admin/dashboard/layout.tsx
   const fetchData = useCallback(async () => {
@@ -57,18 +59,50 @@ export default function Dashboard() {
     router.replace("/admin");
   };
 
-  const handleDeleteProduct = async (id: string) => {
+  const handleDeleteProduct = async (product: AdminProduct) => {
     if (!window.confirm("¿Estás seguro de que deseas eliminar este producto?")) return;
-    const { error } = await supabase.from("products").delete().eq("id", id);
-    if (error) alert("Error al eliminar: " + error.message);
-    else fetchData();
+    const { error } = await supabase.from("products").delete().eq("id", product.id);
+    if (error) {
+      alert("Error al eliminar: " + error.message);
+      return;
+    }
+    // Sus fotos ya no las usa nadie (si otro producto las compartiera, no se tocan)
+    await deleteUnusedImages([product.image_url, ...(product.image_urls ?? [])]);
+    fetchData();
   };
 
-  const handleDeleteRoutine = async (id: string | number) => {
+  const handleDeleteRoutine = async (routine: AdminRoutine) => {
     if (!window.confirm("¿Estás seguro de que deseas eliminar esta rutina?")) return;
-    const { error } = await supabase.from("routines").delete().eq("id", id);
-    if (error) alert("Error al eliminar: " + error.message);
-    else fetchData();
+    const { error } = await supabase.from("routines").delete().eq("id", routine.id);
+    if (error) {
+      alert("Error al eliminar: " + error.message);
+      return;
+    }
+    await deleteUnusedImages(Array.isArray(routine.image_url) ? routine.image_url : [routine.image_url]);
+    fetchData();
+  };
+
+  // Borra del Storage las fotos que ningún producto ni rutina usa (restos de pruebas o ediciones antiguas)
+  const handleCleanImages = async () => {
+    setCleaning(true);
+    try {
+      const orphans = await findOrphanImages();
+      if (orphans.length === 0) {
+        alert("No hay fotos sin uso. Todo está limpio.");
+        return;
+      }
+      const kb = Math.round(orphans.reduce((sum, o) => sum + o.size, 0) / 1024);
+      const ok = window.confirm(
+        `Hay ${orphans.length} foto${orphans.length === 1 ? "" : "s"} (${kb} KB) que ningún producto ni rutina usa.\n\nSe eliminarán para siempre. ¿Continuar?`
+      );
+      if (!ok) return;
+      const removed = await removeImages(orphans.map((o) => o.name));
+      alert(`Listo: se eliminaron ${removed} foto${removed === 1 ? "" : "s"} sin uso.`);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "No se pudo limpiar las fotos.");
+    } finally {
+      setCleaning(false);
+    }
   };
 
   // Ajuste rápido de existencias (+1 / -1) sin abrir la pantalla de edición
@@ -103,6 +137,16 @@ export default function Dashboard() {
         </div>
         
         <div className="flex items-center gap-4">
+          <button
+            onClick={handleCleanImages}
+            disabled={cleaning}
+            className="flex items-center gap-2 text-muted hover:text-ink transition-colors text-sm disabled:opacity-50"
+            title="Borra del almacenamiento las fotos que ningún producto ni rutina usa"
+            aria-label="Limpiar fotos sin uso"
+          >
+            <ImageOff size={18} />
+            <span className="hidden sm:inline">{cleaning ? "Revisando..." : "Limpiar fotos sin uso"}</span>
+          </button>
           <button
             onClick={handleLogout}
             className="flex items-center gap-2 text-muted hover:text-ink transition-colors text-sm"
@@ -271,7 +315,7 @@ export default function Dashboard() {
                             <Edit size={18} />
                           </button>
                           <button 
-                            onClick={() => handleDeleteProduct(product.id)}
+                            onClick={() => handleDeleteProduct(product)}
                             className="text-muted/70 hover:text-brand transition-colors p-2 rounded-md hover:bg-brand-soft"
                             title="Eliminar"
                           >
@@ -334,7 +378,7 @@ export default function Dashboard() {
                             <Edit size={18} />
                           </button>
                           <button
-                            onClick={() => handleDeleteRoutine(routine.id)}
+                            onClick={() => handleDeleteRoutine(routine)}
                             className="text-muted/70 hover:text-brand transition-colors p-2 rounded-md hover:bg-brand-soft"
                             title="Eliminar"
                           >

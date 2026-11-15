@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { ArrowLeft, Upload, Save, X } from "lucide-react";
 import ProductPicker from "@/components/admin/ProductPicker";
-import { uploadImage } from "@/lib/images";
+import { deleteUnusedImages, uploadImage } from "@/lib/images";
 
 export default function EditarRutina() {
   const router = useRouter();
@@ -21,6 +21,7 @@ export default function EditarRutina() {
   
   // Imágenes existentes en la base de datos y nuevas a subir
   const [existingImages, setExistingImages] = useState<string[]>([]);
+  const [savedImages, setSavedImages] = useState<string[]>([]); // fotos guardadas al abrir la pantalla
   const [newImageFiles, setNewImageFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -43,11 +44,13 @@ export default function EditarRutina() {
         setProductIds(data.product_ids ?? []);
 
         // Manejamos si las imágenes son un array o un string único
-        if (Array.isArray(data.image_url)) {
-          setExistingImages(data.image_url);
-        } else if (typeof data.image_url === "string" && data.image_url) {
-          setExistingImages([data.image_url]);
-        }
+        const saved: string[] = Array.isArray(data.image_url)
+          ? data.image_url
+          : typeof data.image_url === "string" && data.image_url
+            ? [data.image_url]
+            : [];
+        setExistingImages(saved);
+        setSavedImages(saved);
       } else {
         alert("No se encontró la rutina.");
         router.push("/admin/dashboard");
@@ -75,13 +78,16 @@ export default function EditarRutina() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    const uploaded: string[] = [];
 
     try {
       const finalImagesList = [...existingImages];
 
       // Subimos las nuevas imágenes añadidas al bucket de Supabase
       for (const file of newImageFiles) {
-        finalImagesList.push(await uploadImage(file, "routine_"));
+        const url = await uploadImage(file, "routine_");
+        uploaded.push(url);
+        finalImagesList.push(url);
       }
 
       // Actualizamos el registro en la tabla routines
@@ -102,9 +108,11 @@ export default function EditarRutina() {
         throw new Error(`Error al actualizar rutina: ${updateError.message}`);
       }
 
+      await deleteUnusedImages(savedImages); // las fotos que quitaste se borran del Storage
       alert("¡Rutina actualizada con éxito!");
       router.push("/admin/dashboard");
     } catch (error) {
+      await deleteUnusedImages(uploaded); // si falló el guardado, no dejar fotos sin dueño
       alert(error instanceof Error ? error.message : "No se pudo guardar la rutina.");
     } finally {
       setLoading(false);

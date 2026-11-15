@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import WhatsAppIcon from "@/components/WhatsAppIcon";
+import InstagramIcon, { INSTAGRAM_GRADIENT } from "@/components/InstagramIcon";
 import JsonLd from "@/components/JsonLd";
 import ProductTeaser, { type TeaserProduct } from "@/components/ProductTeaser";
 import {
@@ -143,14 +144,23 @@ export default async function Home() {
             <h2 className="text-3xl sm:text-4xl font-semibold text-ink">Así de fácil</h2>
             <p className="mt-3 text-muted">De tu piel a tu pedido en tres pasos.</p>
           </div>
-          <ol className="grid gap-8 sm:grid-cols-3">
+          {/* En celular: pasos en línea vertical (número a la izquierda). En pantallas grandes: 3 columnas unidas por una línea. */}
+          <ol className="mx-auto grid max-w-md gap-6 sm:max-w-none sm:grid-cols-3 sm:gap-8">
             {STEPS.map((step, i) => (
-              <li key={step.title} className="text-center">
-                <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft font-display text-xl font-semibold text-brand">
+              <li key={step.title} className="relative flex gap-4 text-left sm:flex-col sm:items-center sm:gap-0 sm:text-center">
+                {i < STEPS.length - 1 && (
+                  <>
+                    <span aria-hidden="true" className="absolute left-6 top-14 -bottom-4 border-l-2 border-dashed border-brand/25 sm:hidden" />
+                    <span aria-hidden="true" className="absolute top-6 left-[calc(50%+2.5rem)] right-[calc(-50%+0.5rem)] hidden border-t-2 border-dashed border-brand/25 sm:block" />
+                  </>
+                )}
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-soft font-display text-xl font-semibold text-brand sm:mb-4">
                   {i + 1}
                 </span>
-                <h3 className="font-sans text-lg font-semibold text-ink">{step.title}</h3>
-                <p className="mt-1.5 text-sm text-muted leading-relaxed">{step.text}</p>
+                <div className="pt-1 sm:pt-0">
+                  <h3 className="font-sans text-lg font-semibold text-ink">{step.title}</h3>
+                  <p className="mt-1 text-sm text-muted leading-relaxed sm:mt-1.5">{step.text}</p>
+                </div>
               </li>
             ))}
           </ol>
@@ -278,7 +288,7 @@ export default async function Home() {
       {/* ───────── Cierre ───────── */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 py-14 md:py-20">
         <div className="rounded-3xl bg-blush px-6 py-12 text-center sm:px-12">
-          <h2 className="text-3xl sm:text-4xl font-semibold text-ink">¿No sabes por dónde empezar?</h2>
+          <h2 className="text-3xl sm:text-4xl font-semibold text-ink">¿Tienes dudas sobre tu piel?</h2>
           <p className="mt-3 text-muted max-w-lg mx-auto">
             Escríbenos y te ayudamos a elegir. También puedes seguirnos en Instagram.
           </p>
@@ -295,8 +305,11 @@ export default async function Home() {
               href={INSTAGRAM_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-ink/20 px-7 py-3.5 font-semibold text-ink hover:border-brand hover:text-brand transition-colors"
+              className="inline-flex items-center justify-center gap-2.5 rounded-full bg-ink px-7 py-3.5 font-semibold text-white shadow-lg shadow-ink/15 hover:bg-black transition-colors"
             >
+              <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${INSTAGRAM_GRADIENT}`}>
+                <InstagramIcon size={17} />
+              </span>
               @{INSTAGRAM_HANDLE}
             </a>
           </div>

@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { ArrowLeft, Upload, Save, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ProductPicker from "@/components/admin/ProductPicker";
-import { uploadImage } from "@/lib/images";
+import { deleteUnusedImages, uploadImage } from "@/lib/images";
 
 export default function NuevaRutina() {
   const router = useRouter();
@@ -34,10 +34,9 @@ export default function NuevaRutina() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    const uploadedUrls: string[] = [];
 
     try {
-      const uploadedUrls: string[] = [];
-
       // Subimos cada imagen seleccionada al bucket
       for (const file of imageFiles) {
         uploadedUrls.push(await uploadImage(file, "routine_"));
@@ -63,6 +62,7 @@ export default function NuevaRutina() {
       alert("¡Rutina creada con éxito!");
       router.push("/admin/dashboard");
     } catch (error) {
+      await deleteUnusedImages(uploadedUrls); // si falló el guardado, no dejar fotos sin dueño
       alert(error instanceof Error ? error.message : "No se pudo guardar la rutina.");
     } finally {
       setLoading(false);
