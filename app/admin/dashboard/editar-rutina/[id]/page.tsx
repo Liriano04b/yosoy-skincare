@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { ArrowLeft, Upload, Save, X } from "lucide-react";
 import ProductPicker from "@/components/admin/ProductPicker";
+import { uploadImage } from "@/lib/images";
 
 export default function EditarRutina() {
+  const router = useRouter();
   const params = useParams();
   const id = params?.id;
 
@@ -24,38 +26,36 @@ export default function EditarRutina() {
   const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
-    if (id) {
-      fetchRoutineData();
-    }
-  }, [id]);
+    if (!id) return;
+    const fetchRoutineData = async () => {
+      const { data } = await supabase
+        .from("routines")
+        .select("*")
+        .eq("id", id)
+        .single();
 
-  const fetchRoutineData = async () => {
-    const { data, error } = await supabase
-      .from("routines")
-      .select("*")
-      .eq("id", id)
-      .single();
+      if (data) {
+        setTitle(data.title || "");
+        setSkinTypeTag(data.skin_type_tag || "");
+        setDescription(data.description || "");
+        setPrice(data.price ? data.price.toString() : "");
+        setSteps(data.steps || "");
+        setProductIds(data.product_ids ?? []);
 
-    if (data) {
-      setTitle(data.title || "");
-      setSkinTypeTag(data.skin_type_tag || "");
-      setDescription(data.description || "");
-      setPrice(data.price ? data.price.toString() : "");
-      setSteps(data.steps || "");
-      setProductIds(data.product_ids ?? []);
-
-      // Manejamos si las imágenes son un array o un string único
-      if (Array.isArray(data.image_url)) {
-        setExistingImages(data.image_url);
-      } else if (typeof data.image_url === "string" && data.image_url) {
-        setExistingImages([data.image_url]);
+        // Manejamos si las imágenes son un array o un string único
+        if (Array.isArray(data.image_url)) {
+          setExistingImages(data.image_url);
+        } else if (typeof data.image_url === "string" && data.image_url) {
+          setExistingImages([data.image_url]);
+        }
+      } else {
+        alert("No se encontró la rutina.");
+        router.push("/admin/dashboard");
       }
-    } else {
-      alert("No se encontró la rutina.");
-      window.location.href = "/admin/dashboard";
-    }
-    setFetching(false);
-  };
+      setFetching(false);
+    };
+    fetchRoutineData();
+  }, [id, router]);
 
   const handleNewImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -81,21 +81,7 @@ export default function EditarRutina() {
 
       // Subimos las nuevas imágenes añadidas al bucket de Supabase
       for (const file of newImageFiles) {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `routine_${Math.random()}_${Date.now()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage
-          .from('productos')
-          .upload(fileName, file);
-
-        if (uploadError) {
-          throw new Error(`Error al subir imagen: ${uploadError.message}`);
-        }
-
-        const { data: publicUrlData } = supabase.storage
-          .from('productos')
-          .getPublicUrl(fileName);
-          
-        finalImagesList.push(publicUrlData.publicUrl);
+        finalImagesList.push(await uploadImage(file, "routine_"));
       }
 
       // Actualizamos el registro en la tabla routines
@@ -117,9 +103,9 @@ export default function EditarRutina() {
       }
 
       alert("¡Rutina actualizada con éxito!");
-      window.location.href = "/admin/dashboard";
-    } catch (error: any) {
-      alert(error.message);
+      router.push("/admin/dashboard");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "No se pudo guardar la rutina.");
     } finally {
       setLoading(false);
     }
@@ -133,7 +119,7 @@ export default function EditarRutina() {
     <div className="min-h-screen bg-cream p-4 md:p-6">
       <div className="max-w-3xl mx-auto">
         <button 
-          onClick={() => window.location.href = '/admin/dashboard'} 
+          onClick={() => router.push('/admin/dashboard')}
           className="flex items-center gap-2 text-muted hover:text-ink mb-4 md:mb-6 transition-colors text-sm md:text-base"
         >
           <ArrowLeft size={20} />

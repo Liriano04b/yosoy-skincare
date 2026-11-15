@@ -1,10 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { ArrowLeft } from "lucide-react";
 
 export default function AdminLogin() {
+  const router = useRouter();
+
+  // Si ya hay sesión iniciada, se entra directo al panel
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) router.replace("/admin/dashboard");
+    });
+  }, [router]);
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -21,19 +32,19 @@ export default function AdminLogin() {
     if (error) {
       setError("Credenciales incorrectas. Intenta de nuevo.");
     } else {
-      window.location.href = "/admin/dashboard";
+      router.replace("/admin/dashboard");
     }
   };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-cream p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-sm p-8 border border-line">
-        <a
+        <Link
           href="/"
           className="inline-flex items-center gap-1.5 text-sm font-medium text-muted hover:text-brand transition-colors mb-4"
         >
           <ArrowLeft size={16} aria-hidden="true" /> Volver a la tienda
-        </a>
+        </Link>
         <h1 className="text-2xl font-bold text-ink mb-6 text-center">Yosoy Admin</h1>
 
         <form onSubmit={handleLogin} className="space-y-5">

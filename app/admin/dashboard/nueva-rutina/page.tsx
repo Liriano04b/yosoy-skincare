@@ -3,9 +3,12 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { ArrowLeft, Upload, Save, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import ProductPicker from "@/components/admin/ProductPicker";
+import { uploadImage } from "@/lib/images";
 
 export default function NuevaRutina() {
+  const router = useRouter();
   const [title, setTitle] = useState("");
   const [skinTypeTag, setSkinTypeTag] = useState("Piel Seca o Deshidratada");
   const [description, setDescription] = useState("");
@@ -37,21 +40,7 @@ export default function NuevaRutina() {
 
       // Subimos cada imagen seleccionada al bucket
       for (const file of imageFiles) {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `routine_${Math.random()}_${Date.now()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage
-          .from('productos')
-          .upload(fileName, file);
-
-        if (uploadError) {
-          throw new Error(`Error al subir imagen: ${uploadError.message}`);
-        }
-
-        const { data: publicUrlData } = supabase.storage
-          .from('productos')
-          .getPublicUrl(fileName);
-          
-        uploadedUrls.push(publicUrlData.publicUrl);
+        uploadedUrls.push(await uploadImage(file, "routine_"));
       }
 
       // Guardamos la rutina con el arreglo de URLs en Supabase
@@ -72,9 +61,9 @@ export default function NuevaRutina() {
       }
 
       alert("¡Rutina creada con éxito!");
-      window.location.href = "/admin/dashboard";
-    } catch (error: any) {
-      alert(error.message);
+      router.push("/admin/dashboard");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "No se pudo guardar la rutina.");
     } finally {
       setLoading(false);
     }
@@ -84,7 +73,7 @@ export default function NuevaRutina() {
     <div className="min-h-screen bg-cream p-4 md:p-6">
       <div className="max-w-3xl mx-auto">
         <button 
-          onClick={() => window.location.href = '/admin/dashboard'} 
+          onClick={() => router.push('/admin/dashboard')}
           className="flex items-center gap-2 text-muted hover:text-ink mb-4 md:mb-6 transition-colors text-sm md:text-base"
         >
           <ArrowLeft size={20} />

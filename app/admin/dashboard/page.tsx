@@ -1,48 +1,60 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { Package, Plus, LogOut, Trash2, Edit, Sparkles, Layers } from "lucide-react";
-import Link from "next/link"; // Asegúrate de importar Link si no lo tienes
+import { Package, Plus, Minus, LogOut, Trash2, Edit, Eye, Sparkles, Layers } from "lucide-react";
+import Link from "next/link";
+
+type AdminProduct = {
+  id: string;
+  slug: string;
+  name: string;
+  brand: string | null;
+  category: string | null;
+  price: number;
+  discount_price: number | null;
+  stock: number;
+  image_url: string | null;
+  image_urls: string[] | null;
+};
+
+type AdminRoutine = {
+  id: string | number;
+  title: string;
+  description: string | null;
+  skin_type_tag: string | null;
+  price: number | null;
+  image_url: string | string[] | null;
+};
 
 export default function Dashboard() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"products" | "routines">("products");
-  const [products, setProducts] = useState<any[]>([]);
-  const [routines, setRoutines] = useState<any[]>([]);
+  const [products, setProducts] = useState<AdminProduct[]>([]);
+  const [routines, setRoutines] = useState<AdminRoutine[]>([]);
   const [loading, setLoading] = useState(true);
+  const [savingStockId, setSavingStockId] = useState<string | null>(null);
 
-  useEffect(() => {
-    checkUser();
-    fetchData();
+  // El acceso al panel lo protege app/admin/dashboard/layout.tsx
+  const fetchData = useCallback(async () => {
+    const [{ data: prodData }, { data: routData }] = await Promise.all([
+      supabase.from("products").select("id, slug, name, brand, category, price, discount_price, stock, image_url, image_urls").order("created_at", { ascending: false }),
+      supabase.from("routines").select("id, title, description, skin_type_tag, price, image_url").order("created_at", { ascending: false }),
+    ]);
+    if (prodData) setProducts(prodData as AdminProduct[]);
+    if (routData) setRoutines(routData as AdminRoutine[]);
+    setLoading(false);
   }, []);
 
-  const checkUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      window.location.href = "/admin";
-    }
-  };
-
-  const fetchData = async () => {
-    setLoading(true);
-    const { data: prodData } = await supabase
-      .from("products")
-      .select("*")
-      .order("created_at", { ascending: false });
-    
-    const { data: routData } = await supabase
-      .from("routines")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (prodData) setProducts(prodData);
-    if (routData) setRoutines(routData);
-    setLoading(false);
-  };
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial de datos externos
+    fetchData();
+  }, [fetchData]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    window.location.href = "/admin";
+    router.replace("/admin");
   };
 
   const handleDeleteProduct = async (id: string) => {
@@ -52,12 +64,28 @@ export default function Dashboard() {
     else fetchData();
   };
 
-  const handleDeleteRoutine = async (id: number) => {
+  const handleDeleteRoutine = async (id: string | number) => {
     if (!window.confirm("¿Estás seguro de que deseas eliminar esta rutina?")) return;
     const { error } = await supabase.from("routines").delete().eq("id", id);
     if (error) alert("Error al eliminar: " + error.message);
     else fetchData();
   };
+
+  // Ajuste rápido de existencias (+1 / -1) sin abrir la pantalla de edición
+  const changeStock = async (product: AdminProduct, delta: number) => {
+    const next = Math.max(0, product.stock + delta);
+    if (next === product.stock || savingStockId) return;
+    setSavingStockId(product.id);
+    const { error } = await supabase.from("products").update({ stock: next }).eq("id", product.id);
+    setSavingStockId(null);
+    if (error) {
+      alert("No se pudo actualizar el stock: " + error.message);
+      return;
+    }
+    setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, stock: next } : p)));
+  };
+
+  const routineImage = (r: AdminRoutine) => (Array.isArray(r.image_url) ? r.image_url[0] : r.image_url);
 
   const totalProductsCount = products.length;
   const availableProductsCount = products.filter(p => p.stock > 0).length;
@@ -175,7 +203,7 @@ export default function Dashboard() {
                       <tr key={product.id} className="hover:bg-cream/50 transition-colors">
                         <td className="p-4 flex items-center gap-3">
                           {product.image_urls?.[0] || product.image_url ? (
-                            <img src={product.image_urls?.[0] || product.image_url} alt={product.name} className="w-10 h-10 rounded-md object-cover border border-line bg-white" />
+                            <img src={(product.image_urls?.[0] || product.image_url) as string} alt={product.name} className="w-10 h-10 rounded-md object-cover border border-line bg-white" />
                           ) : (
                             <div className="w-10 h-10 rounded-md bg-blush/60 flex items-center justify-center text-muted/70 text-[10px]">Sin img</div>
                           )}
@@ -200,13 +228,43 @@ export default function Dashboard() {
                           )}
                         </td>
                         <td className="p-4">
-                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${product.stock > 0 ? 'bg-green-50 text-green-700' : 'bg-brand-soft text-brand'}`}>
-                            {product.stock > 0 ? `${product.stock} unds` : 'AGOTADO'}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => changeStock(product, -1)}
+                              disabled={product.stock <= 0 || savingStockId === product.id}
+                              className="rounded-md border border-line p-1.5 text-muted hover:border-brand hover:text-brand disabled:cursor-not-allowed disabled:opacity-40"
+                              aria-label={`Quitar una unidad de ${product.name}`}
+                            >
+                              <Minus size={14} />
+                            </button>
+                            <span className={`min-w-[4.5rem] rounded-full px-3 py-1 text-center text-xs font-bold ${product.stock > 0 ? 'bg-green-50 text-green-700' : 'bg-brand-soft text-brand'}`}>
+                              {product.stock > 0 ? `${product.stock} unds` : 'AGOTADO'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => changeStock(product, 1)}
+                              disabled={savingStockId === product.id}
+                              className="rounded-md border border-line p-1.5 text-muted hover:border-brand hover:text-brand disabled:cursor-not-allowed disabled:opacity-40"
+                              aria-label={`Agregar una unidad de ${product.name}`}
+                            >
+                              <Plus size={14} />
+                            </button>
+                          </div>
                         </td>
                         <td className="p-4 flex justify-center items-center gap-1">
-                          <button 
-                            onClick={() => window.location.href = `/admin/dashboard/editar/${product.slug}`}
+                          <Link
+                            href={`/producto/${product.slug}`}
+                            target="_blank"
+                            rel="noopener"
+                            className="text-muted/70 hover:text-brand transition-colors p-2 rounded-md hover:bg-brand-soft"
+                            title="Ver producto en la tienda"
+                            aria-label={`Ver ${product.name} en la tienda`}
+                          >
+                            <Eye size={18} />
+                          </Link>
+                          <button
+                            onClick={() => router.push(`/admin/dashboard/editar/${product.slug}`)}
                             className="text-muted/70 hover:text-sage transition-colors p-2 rounded-md hover:bg-sage-soft"
                             title="Editar"
                           >
@@ -233,7 +291,7 @@ export default function Dashboard() {
         {activeTab === "routines" && (
           <div className="bg-white rounded-xl border border-line shadow-sm overflow-hidden">
             {routines.length === 0 ? (
-              <div className="p-12 text-center text-muted">No hay rutinas registradas todavía. Haz clic en "Agregar Rutina".</div>
+              <div className="p-12 text-center text-muted">No hay rutinas registradas todavía. Haz clic en &ldquo;Agregar Rutina&rdquo;.</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm text-muted">
@@ -249,8 +307,8 @@ export default function Dashboard() {
                     {routines.map((routine) => (
                       <tr key={routine.id} className="hover:bg-cream/50 transition-colors">
                         <td className="p-4 flex items-center gap-3">
-                          {routine.image_url ? (
-                            <img src={routine.image_url} alt={routine.title} className="w-10 h-10 rounded-md object-cover border border-line bg-white" />
+                          {routineImage(routine) ? (
+                            <img src={routineImage(routine) as string} alt={routine.title} className="w-10 h-10 rounded-md object-cover border border-line bg-white" />
                           ) : (
                             <div className="w-10 h-10 rounded-md bg-blush/60 flex items-center justify-center text-muted/70 text-[10px]">Sin img</div>
                           )}
@@ -268,7 +326,14 @@ export default function Dashboard() {
                           RD${routine.price?.toLocaleString()}
                         </td>
                         <td className="p-4 flex justify-center items-center gap-1">
-                          <button 
+                          <button
+                            onClick={() => router.push(`/admin/dashboard/editar-rutina/${routine.id}`)}
+                            className="text-muted/70 hover:text-sage transition-colors p-2 rounded-md hover:bg-sage-soft"
+                            title="Editar"
+                          >
+                            <Edit size={18} />
+                          </button>
+                          <button
                             onClick={() => handleDeleteRoutine(routine.id)}
                             className="text-muted/70 hover:text-brand transition-colors p-2 rounded-md hover:bg-brand-soft"
                             title="Eliminar"

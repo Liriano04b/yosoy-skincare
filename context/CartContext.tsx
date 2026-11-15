@@ -41,6 +41,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
                 const parsed = JSON.parse(savedCart);
                 // Solo aceptamos artículos con la forma esperada; un dato corrupto no debe romper la tienda
                 if (Array.isArray(parsed)) {
+                    // Leer localStorage solo puede hacerse en el navegador, tras el primer render (evita errores de hidratación)
+                    // eslint-disable-next-line react-hooks/set-state-in-effect
                     setCart(
                         parsed.filter(
                             (item) =>

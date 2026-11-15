@@ -2,9 +2,13 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { ArrowLeft, Upload, Save, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import TagPicker, { SKIN_TAG_OPTIONS, CONCERN_TAG_OPTIONS } from "@/components/admin/TagPicker";
+import { uploadImage } from "@/lib/images";
+import { uniqueProductSlug } from "@/lib/slug";
 
 export default function NuevoProducto() {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [brand, setBrand] = useState("");
   const [price, setPrice] = useState("");
@@ -33,7 +37,7 @@ export default function NuevoProducto() {
       if (data) {
         // Filtramos para obtener marcas únicas, en mayúsculas y sin espacios
         const uniqueBrands = Array.from(
-          new Set(data.map((p: any) => p.brand?.trim().toUpperCase()).filter(Boolean))
+          new Set(data.map((p) => (p.brand as string | null)?.trim().toUpperCase()).filter(Boolean))
         );
         setExistingBrands(uniqueBrands as string[]);
       }
@@ -64,33 +68,14 @@ export default function NuevoProducto() {
     }
     setLoading(true);
     try {
-      const slug = name
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)+/g, '');
-        
+      // Si ya existe un producto con ese nombre, el enlace queda como "nombre-2" en vez de fallar
+      const slug = await uniqueProductSlug(name);
+
       const uploaded_urls: string[] = [];
-      
       for (const img of images) {
-        const fileExt = img.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage
-          .from('productos')
-          .upload(fileName, img);
-          
-        if (uploadError) {
-          throw new Error(`Error al subir imagen: ${uploadError.message}`);
-        }
-        
-        const { data: publicUrlData } = supabase.storage
-          .from('productos')
-          .getPublicUrl(fileName);
-          
-        uploaded_urls.push(publicUrlData.publicUrl);
+        uploaded_urls.push(await uploadImage(img));
       }
-      
+
       const { error: insertError } = await supabase.from('products').insert([
         {
           name,
@@ -116,9 +101,9 @@ export default function NuevoProducto() {
       }
       
       alert("¡Producto creado con éxito!");
-      window.location.href = "/admin/dashboard";
-    } catch (error: any) {
-      alert(error.message);
+      router.push("/admin/dashboard");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "No se pudo guardar el producto.");
     } finally {
       setLoading(false);
     }
@@ -128,7 +113,7 @@ export default function NuevoProducto() {
     <div className="min-h-screen bg-cream p-4 md:p-6">
       <div className="max-w-4xl mx-auto">
         <button 
-          onClick={() => window.location.href = '/admin/dashboard'} 
+          onClick={() => router.push('/admin/dashboard')}
           className="flex items-center gap-2 text-muted hover:text-ink mb-4 md:mb-6 transition-colors text-sm md:text-base"
         >
           <ArrowLeft size={20} />

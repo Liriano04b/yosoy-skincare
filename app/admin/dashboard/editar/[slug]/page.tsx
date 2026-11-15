@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { ArrowLeft, Save, Upload, X } from "lucide-react";
 import TagPicker, { SKIN_TAG_OPTIONS, CONCERN_TAG_OPTIONS } from "@/components/admin/TagPicker";
 import { useParams, useRouter } from "next/navigation";
+import { uploadImage } from "@/lib/images";
 
 export default function EditarProducto() {
   const params = useParams();
@@ -31,58 +32,57 @@ export default function EditarProducto() {
   const [existingBrands, setExistingBrands] = useState<string[]>([]);
   const [showBrandSuggestions, setShowBrandSuggestions] = useState(false);
 
+  // Cargar el producto a editar
   useEffect(() => {
-    if (urlParam) {
-      fetchProductData();
-    }
+    if (!urlParam) return;
+    const fetchProductData = async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .eq("slug", urlParam)
+        .single();
+      if (error) {
+        alert("Error al cargar producto: " + error.message);
+        return;
+      }
+      if (data) {
+        setId(data.id);
+        setName(data.name || "");
+        setBrand(data.brand || "");
+        setPrice(data.price?.toString() || "");
+        setDiscountPrice(data.discount_price?.toString() || "");
+        setStock(data.stock?.toString() || "");
+        setDescription(data.description || "");
+        setIngredients(data.ingredients || "");
+        setHowToUse(data.how_to_use || "");
+        setSkinType(data.skin_type || "Todo tipo de piel");
+        setSkinTypes(data.skin_types ?? []);
+        setConcerns(data.concerns ?? []);
+        setCategory(data.category || "Serum");
+        if (data.image_urls && data.image_urls.length > 0) {
+          setExistingImages(data.image_urls);
+        } else if (data.image_url) {
+          setExistingImages([data.image_url]);
+        }
+      }
+      setLoading(false);
+    };
+    fetchProductData();
   }, [urlParam]);
 
-  // NUEVO EFECTO: Buscar marcas existentes al cargar la página
+  // Buscar marcas existentes para el autocompletado
   useEffect(() => {
     const fetchBrands = async () => {
       const { data } = await supabase.from('products').select('brand');
       if (data) {
         const uniqueBrands = Array.from(
-          new Set(data.map((p: any) => p.brand?.trim().toUpperCase()).filter(Boolean))
+          new Set(data.map((p) => (p.brand as string | null)?.trim().toUpperCase()).filter(Boolean))
         );
         setExistingBrands(uniqueBrands as string[]);
       }
     };
     fetchBrands();
   }, []);
-
-  const fetchProductData = async () => {
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .eq("slug", urlParam)
-      .single();
-    if (error) {
-      alert("Error al cargar producto: " + error.message);
-      return;
-    }
-    if (data) {
-      setId(data.id);
-      setName(data.name || "");
-      setBrand(data.brand || "");
-      setPrice(data.price?.toString() || "");
-      setDiscountPrice(data.discount_price?.toString() || "");
-      setStock(data.stock?.toString() || "");
-      setDescription(data.description || "");
-      setIngredients(data.ingredients || "");
-      setHowToUse(data.how_to_use || "");
-      setSkinType(data.skin_type || "Todo tipo de piel");
-      setSkinTypes(data.skin_types ?? []);
-      setConcerns(data.concerns ?? []);
-      setCategory(data.category || "Serum");
-      if (data.image_urls && data.image_urls.length > 0) {
-        setExistingImages(data.image_urls);
-      } else if (data.image_url) {
-        setExistingImages([data.image_url]);
-      }
-    }
-    setLoading(false);
-  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -114,16 +114,7 @@ export default function EditarProducto() {
     try {
       const final_urls: string[] = [...existingImages];
       for (const img of newImages) {
-        const fileExt = img.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage
-          .from('productos')
-          .upload(fileName, img);
-        if (uploadError) throw new Error(`Error al subir imagen: ${uploadError.message}`);
-        const { data: publicUrlData } = supabase.storage
-          .from('productos')
-          .getPublicUrl(fileName);
-        final_urls.push(publicUrlData.publicUrl);
+        final_urls.push(await uploadImage(img));
       }
       const { error: updateError } = await supabase
         .from('products')
@@ -149,8 +140,8 @@ export default function EditarProducto() {
       }
       alert("¡Producto actualizado con éxito!");
       router.push("/admin/dashboard");
-    } catch (error: any) {
-      alert(error.message);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "No se pudo guardar el producto.");
     } finally {
       setSaving(false);
     }
