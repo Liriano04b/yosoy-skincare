@@ -1,325 +1,358 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
+import { AlertCircle, ChevronLeft, Moon, RefreshCw, Sun } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { ArrowLeft, Sparkles, CheckCircle2, RefreshCw, ChevronLeft } from "lucide-react";
+import { PLACEHOLDER_IMAGE, whatsappLink } from "@/lib/config";
+import WhatsAppIcon from "@/components/WhatsAppIcon";
+import {
+  CONCERN_LABEL,
+  QUESTIONS,
+  SENSITIVITY_LABEL,
+  SKIN_LABEL,
+  STEP_LABEL,
+  buildRoutine,
+  isCompleteAnswers,
+  routineWhatsAppMessage,
+  type Answers,
+  type TestProduct,
+} from "@/lib/skinTest";
+
+const STORAGE_KEY = "yosoy_skin_test";
+const COLUMNS =
+  "id, slug, name, brand, category, skin_type, skin_types, concerns, price, discount_price, stock, image_url, image_urls, description, ingredients";
+
+const money = (n: number) => `RD$${Number(n).toLocaleString("en-US")}`;
 
 export default function DescubreTuPiel() {
-  const [step, setStep] = useState(1);
-  const [skinType, setSkinType] = useState("");
-  const [skinGoal, setSkinGoal] = useState("");
-  const [isSensitive, setIsSensitive] = useState("");
-  
-  const [loadingResult, setLoadingResult] = useState(false);
-  const [resultReady, setResultReady] = useState(false);
-  const [recommendedProducts, setRecommendedProducts] = useState<any[]>([]);
+  const total = QUESTIONS.length;
+  const [step, setStep] = useState(0); // 0..total-1 = preguntas, total = resultados
+  const [answers, setAnswers] = useState<Partial<Answers>>({});
+  const [products, setProducts] = useState<TestProduct[] | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
-  const handleNextStep = (answer: string, type: 'skin' | 'goal' | 'sensitive') => {
-    if (type === 'skin') setSkinType(answer);
-    if (type === 'goal') setSkinGoal(answer);
-    if (type === 'sensitive') {
-      setIsSensitive(answer);
-      fetchRecommendations(skinType);
-      return;
-    }
-    setStep(step + 1);
-  };
+  // Carga los productos con stock y, si la persona ya había hecho el test en esta sesión
+  // (por ejemplo, volvió desde la ficha de un producto), recupera su resultado.
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const { data, error } = await supabase.from("products").select(COLUMNS).gt("stock", 0);
+      if (cancelled) return;
+      if (error) setLoadError(true);
+      else setProducts((data ?? []) as TestProduct[]);
 
-  const handlePrevStep = () => {
-    if (step > 1) {
-      setStep(step - 1);
-    }
-  };
-
-  // ALGORITMO ACTUALIZADO
-  const fetchRecommendations = async (selectedSkinType: string) => {
-    setLoadingResult(true);
-    let dbSkinQuery = "Todo tipo de piel";
-    
-    if (selectedSkinType.includes("Seca")) dbSkinQuery = "Piel Seca";
-    else if (selectedSkinType.includes("Grasa")) dbSkinQuery = "Piel Grasa";
-    else if (selectedSkinType.includes("Mixta")) dbSkinQuery = "Piel Mixta";
-    else if (selectedSkinType.includes("Sensible")) dbSkinQuery = "Piel Sensible";
-    else if (selectedSkinType.includes("manchas")) dbSkinQuery = "Piel con manchas";
-    else if (selectedSkinType.includes("expresión")) dbSkinQuery = "Linea de expresión";
-
-    // Buscamos productos específicos para el tipo de piel O los generales ("Todo tipo de piel")
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .or(`skin_type.eq.${dbSkinQuery},skin_type.eq.Todo tipo de piel`);
-
-    if (data && data.length > 0) {
-      // 1. Damos prioridad a los productos que son EXACTAMENTE para el problema del usuario
-      const sortedData = data.sort((a, b) => {
-        if (a.skin_type === dbSkinQuery && b.skin_type !== dbSkinQuery) return -1;
-        if (a.skin_type !== dbSkinQuery && b.skin_type === dbSkinQuery) return 1;
-        return 0;
-      });
-
-      // 2. Armamos una rutina completa evitando repetir categorías (hasta 5 productos)
-      const routine: any[] = [];
-      const categoriesAdded = new Set();
-
-      for (const prod of sortedData) {
-        // Ignoramos productos sin categoría si queremos armar rutinas
-        if (prod.category && !categoriesAdded.has(prod.category) && routine.length < 5) {
-          routine.push(prod);
-          categoriesAdded.add(prod.category);
+      try {
+        const saved = JSON.parse(sessionStorage.getItem(STORAGE_KEY) ?? "null");
+        if (isCompleteAnswers(saved)) {
+          setAnswers(saved);
+          setStep(total);
         }
+      } catch {
+        // sin sessionStorage: el test funciona igual, solo que no recuerda el resultado
       }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [total]);
 
-      // 3. Si no llegamos a 5 productos, rellenamos con lo que quede disponible
-      if (routine.length < 5) {
-        for (const prod of sortedData) {
-          if (!routine.find(r => r.id === prod.id) && routine.length < 5) {
-            routine.push(prod);
-          }
-        }
-      }
+  const result = useMemo(() => {
+    if (step < total || !products || !isCompleteAnswers(answers)) return null;
+    return buildRoutine(products, answers);
+  }, [step, total, products, answers]);
 
-      setRecommendedProducts(routine);
+  const choose = (key: keyof Answers, value: string) => {
+    const next = { ...answers, [key]: value } as Partial<Answers>;
+    setAnswers(next);
+    if (step < total - 1) {
+      setStep(step + 1);
     } else {
-      setRecommendedProducts([]);
+      try {
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // ignorar
+      }
+      setStep(total);
+      window.scrollTo({ top: 0 });
     }
-
-    setTimeout(() => {
-      setLoadingResult(false);
-      setResultReady(true);
-    }, 1500); // Simulamos que la IA está calculando la rutina ideal
   };
 
-  const resetQuiz = () => {
-    setStep(1);
-    setSkinType("");
-    setSkinGoal("");
-    setIsSensitive("");
-    setResultReady(false);
-    setRecommendedProducts([]);
+  const reset = () => {
+    try {
+      sessionStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // ignorar
+    }
+    setAnswers({});
+    setStep(0);
+    window.scrollTo({ top: 0 });
   };
 
-  return (
-    <div className="min-h-screen bg-[#FAFAFA]">
-      <nav className="bg-white border-b border-gray-100 p-6 sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-gray-500 hover:text-[#E50000] transition-colors font-medium">
-            <ArrowLeft size={20} /> Volver al Inicio
-          </Link>
-          <h1 className="text-xl font-extrabold text-gray-900 tracking-tight">
-            Test <span className="text-[#E50000]">Yosoy</span>
-          </h1>
-        </div>
-      </nav>
-
-      <main className="max-w-2xl mx-auto px-6 py-12 md:py-20">
-        <div className="bg-white rounded-3xl p-8 md:p-12 shadow-xl shadow-red-100/30 border border-gray-100 relative">
-          
-          {!resultReady && !loadingResult && step > 1 && (
-            <button 
-              onClick={handlePrevStep}
-              className="flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-gray-900 mb-6 transition-colors"
-            >
-              <ChevronLeft size={18} /> Anterior
-            </button>
+  // ───────────────────────── Preguntas ─────────────────────────
+  if (step < total) {
+    const q = QUESTIONS[step];
+    const current = answers[q.key];
+    return (
+      <main className="max-w-2xl mx-auto px-4 sm:px-6 py-8 md:py-12">
+        <div className="rounded-3xl bg-white border border-line shadow-xl shadow-brand/5 p-6 sm:p-10">
+          {step === 0 && (
+            <p className="mb-6 text-sm text-muted">
+              Responde {total} preguntas y te armamos una rutina con productos de nuestro catálogo. Toma menos de un
+              minuto.
+            </p>
           )}
 
-          {/* PASO 1: TIPOS DE PIEL (ACTUALIZADO) */}
-          {!resultReady && !loadingResult && step === 1 && (
-            <div>
-              <span className="text-xs font-bold text-[#E50000] uppercase tracking-wider bg-red-50 px-3 py-1 rounded-full">
-                Pregunta 1 de 3
+          <div className="mb-6">
+            <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-brand mb-2">
+              <span>
+                Pregunta {step + 1} de {total}
               </span>
-              <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 mt-4 mb-8">
-                ¿Cómo describirías tu tipo de piel o preocupación principal?
-              </h2>
-              <div className="space-y-4">
-                {[
-                  "Piel Seca (Tirante o escamosa)",
-                  "Piel Grasa (Brillo constante o exceso de sebo)",
-                  "Piel Mixta (Grasa en zona T, seca en mejillas)",
-                  "Piel Sensible / Reactiva",
-                  "Piel con manchas (Hiperpigmentación u ojeras)", // NUEVO
-                  "Línea de expresión (Prevención y antienvejecimiento)" // NUEVO
-                ].map((option, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleNextStep(option, 'skin')}
-                    className="w-full text-left p-5 rounded-2xl border-2 border-gray-100 hover:border-[#E50000] hover:bg-red-50/20 font-medium text-gray-800 transition-all shadow-sm"
-                  >
-                    {option}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* PASO 2 */}
-          {!resultReady && !loadingResult && step === 2 && (
-            <div>
-              <span className="text-xs font-bold text-[#E50000] uppercase tracking-wider bg-red-50 px-3 py-1 rounded-full">
-                Pregunta 2 de 3
-              </span>
-              <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 mt-4 mb-8">
-                ¿Qué es lo que más te gustaría mejorar en tu rostro?
-              </h2>
-              <div className="space-y-4">
-                {[
-                  "Recuperar hidratación profunda y luminosidad",
-                  "Controlar brotes, acné y poros dilatados",
-                  "Disminuir manchas y unificar el tono",
-                  "Prevenir arrugas y mejorar la firmeza", // Ajustado para encajar con el nuevo paso
-                  "Calmar rojeces y sensibilidad"
-                ].map((option, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleNextStep(option, 'goal')}
-                    className="w-full text-left p-5 rounded-2xl border-2 border-gray-100 hover:border-[#E50000] hover:bg-red-50/20 font-medium text-gray-800 transition-all shadow-sm"
-                  >
-                    {option}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* PASO 3 */}
-          {!resultReady && !loadingResult && step === 3 && (
-            <div>
-              <span className="text-xs font-bold text-[#E50000] uppercase tracking-wider bg-red-50 px-3 py-1 rounded-full">
-                Pregunta 3 de 3
-              </span>
-              <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 mt-4 mb-8">
-                ¿Tu piel suele irritarse o reaccionar con facilidad a los cosméticos?
-              </h2>
-              <div className="space-y-4">
-                {[
-                  "Sí, es muy sensible y reactiva",
-                  "A veces, dependiendo del producto",
-                  "No, tolera muy bien los ingredientes"
-                ].map((option, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleNextStep(option, 'sensitive')}
-                    className="w-full text-left p-5 rounded-2xl border-2 border-gray-100 hover:border-[#E50000] hover:bg-red-50/20 font-medium text-gray-800 transition-all shadow-sm"
-                  >
-                    {option}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ESTADO DE CARGA */}
-          {loadingResult && (
-            <div className="text-center py-16">
-              <Sparkles className="text-[#E50000] animate-spin mx-auto mb-6" size={48} />
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">Diseñando tu rutina...</h3>
-              <p className="text-gray-500">Filtrando los mejores productos para tu tipo de piel.</p>
-            </div>
-          )}
-
-          {/* RESULTADOS */}
-          {resultReady && (
-            <div className="animate-in fade-in duration-500">
-              <div className="text-center mb-8">
-                <span className="bg-emerald-50 text-emerald-600 font-bold px-4 py-1.5 rounded-full text-xs tracking-wider uppercase inline-block mb-3">
-                  Recomendación basada en tu perfil
-                </span>
-                <h2 className="text-3xl font-extrabold text-gray-900">Tu Rutina Yosoy Ideal</h2>
-                <p className="text-gray-600 mt-2 text-sm">
-                  Perfil detectado: <span className="font-semibold text-gray-900">{skinType.split('(')[0].trim()}</span> con objetivo de <span className="font-semibold text-gray-900">{skinGoal.toLowerCase()}</span>.
-                </p>
-              </div>
-
-              <div className="space-y-4 mb-8">
-                <p className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Productos sugeridos para ti:</p>
-                
-                {recommendedProducts.length === 0 ? (
-                  <div className="text-center py-8 bg-gray-50 rounded-2xl p-6 border border-gray-100">
-                    <p className="text-gray-600 font-medium mb-2">¡Pronto tendremos productos específicos para este tipo de piel!</p>
-                    <p className="text-xs text-gray-400">Mientras tanto, puedes explorar todo nuestro catálogo general.</p>
-                  </div>
-                ) : (
-                  recommendedProducts.map((prod) => {
-                    const isOutofStock = prod.stock <= 0;
-                    const hasDiscount = prod.discount_price && prod.discount_price > 0 && !isOutofStock;
-
-                    return (
-                      <Link 
-                        href={`/producto/${prod.slug}`} 
-                        key={prod.id} 
-                        className={`flex items-center gap-4 p-4 rounded-2xl border ${isOutofStock ? 'border-gray-100 opacity-80' : 'border-gray-100 hover:border-[#E50000] hover:bg-red-50/10'} transition-all group relative overflow-hidden`}
-                      >
-                        {/* IMAGEN DEL PRODUCTO (Estilo catálogo) */}
-                        <div className="relative w-20 h-20 flex-shrink-0 bg-white rounded-xl p-2 border border-gray-100">
-                          <img 
-                            src={prod.image_urls?.[0] || prod.image_url} 
-                            alt={prod.name} 
-                            className={`w-full h-full object-contain mix-blend-multiply ${isOutofStock ? 'opacity-50' : ''}`} 
-                          />
-                          {isOutofStock && (
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                              <span className="bg-[#E50000] text-white font-bold px-1.5 py-0.5 rounded text-[8px] tracking-widest shadow-md text-center">
-                                AGOTADO
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* DETALLES DEL PRODUCTO */}
-                        <div className="flex-grow min-w-0">
-                          <div className="flex justify-between items-start mb-1">
-                            <p className="text-xs font-bold text-gray-400 uppercase truncate">{prod.brand}</p>
-                            {prod.category && (
-                              <span className="text-[10px] font-bold text-[#E50000] bg-red-50 border border-red-100 px-2 py-0.5 rounded-md uppercase tracking-wide whitespace-nowrap ml-2">
-                                {prod.category}
-                              </span>
-                            )}
-                          </div>
-                          
-                          <h4 className={`font-bold line-clamp-1 transition-colors ${isOutofStock ? 'text-gray-500' : 'text-gray-900 group-hover:text-[#E50000]'}`}>
-                            {prod.name}
-                          </h4>
-                          
-                          {/* PRECIOS */}
-                          {hasDiscount ? (
-                            <div className="flex items-baseline gap-2 mt-1">
-                              <p className="text-sm font-extrabold text-[#E50000]">RD${prod.discount_price.toLocaleString()}</p>
-                              <p className="text-xs font-semibold text-gray-400 line-through">RD${prod.price.toLocaleString()}</p>
-                            </div>
-                          ) : (
-                            <p className={`text-sm font-extrabold mt-1 ${isOutofStock ? 'text-gray-400' : 'text-gray-900'}`}>
-                              RD${prod.price.toLocaleString()}
-                            </p>
-                          )}
-                        </div>
-                      </Link>
-                    );
-                  })
-                )}
-              </div>
-
-              {/* BOTONES FINALES */}
-              <div className="flex flex-col sm:flex-row gap-4">
-                <button 
-                  onClick={resetQuiz}
-                  className="w-full border-2 border-gray-200 text-gray-700 py-3.5 rounded-xl font-bold hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+              {step > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setStep(step - 1)}
+                  className="inline-flex items-center gap-1 normal-case tracking-normal text-sm font-medium text-muted hover:text-ink transition-colors"
                 >
-                  <RefreshCw size={18} /> Repetir Test
+                  <ChevronLeft size={16} aria-hidden="true" /> Anterior
                 </button>
-                <Link 
-                  href="/catalogo" 
-                  className="w-full bg-[#E50000] hover:bg-red-700 text-white py-3.5 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-red-200"
-                >
-                  <CheckCircle2 size={18} /> Ver Todo el Catálogo
-                </Link>
-              </div>
+              )}
             </div>
-          )}
+            <div
+              className="h-1.5 rounded-full bg-blush overflow-hidden"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={total}
+              aria-valuenow={step + 1}
+            >
+              <div
+                className="h-full rounded-full bg-brand transition-all duration-300"
+                style={{ width: `${((step + 1) / total) * 100}%` }}
+              />
+            </div>
+          </div>
 
+          <h1 className="text-2xl sm:text-3xl font-semibold text-ink mb-6">{q.title}</h1>
+
+          <div className="space-y-3">
+            {q.options.map((option) => {
+              const selected = current === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => choose(q.key, option.value)}
+                  className={`w-full text-left rounded-2xl border-2 p-4 sm:p-5 transition-all ${
+                    selected
+                      ? "border-brand bg-brand-soft"
+                      : "border-line bg-white hover:border-brand/50 hover:bg-brand-soft/40"
+                  }`}
+                >
+                  <span className="block font-semibold text-ink">{option.label}</span>
+                  {option.hint && <span className="mt-0.5 block text-sm text-muted">{option.hint}</span>}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </main>
-    </div>
+    );
+  }
+
+  // ───────────────────────── Resultados ─────────────────────────
+  if (loadError) {
+    return (
+      <main className="max-w-xl mx-auto px-4 py-16 text-center">
+        <h1 className="text-3xl font-semibold text-ink">No pudimos cargar los productos</h1>
+        <p className="mt-3 text-muted">Revisa tu conexión e inténtalo de nuevo.</p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="mt-6 rounded-full bg-brand px-7 py-3 font-semibold text-white hover:bg-brand-dark transition-colors"
+        >
+          Reintentar
+        </button>
+      </main>
+    );
+  }
+
+  if (!result || !isCompleteAnswers(answers)) {
+    return (
+      <main className="max-w-2xl mx-auto px-4 sm:px-6 py-12" aria-busy="true">
+        <div className="space-y-4 animate-pulse">
+          <div className="h-8 w-2/3 rounded-lg bg-blush" />
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="h-28 rounded-2xl bg-blush/60" />
+          ))}
+        </div>
+      </main>
+    );
+  }
+
+  const hasDiscount = result.items.some((i) => i.product.discount_price && i.product.discount_price > 0);
+
+  return (
+    <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8 md:py-12">
+      <div className="text-center mb-8">
+        <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.2em] text-brand mb-3">Tu rutina Yosoy</p>
+        <h1 className="text-3xl sm:text-4xl font-semibold text-ink">
+          Tu rutina para piel {SKIN_LABEL[answers.skin]}
+        </h1>
+        <ul className="mt-4 flex flex-wrap justify-center gap-2 text-sm">
+          <li className="rounded-full bg-blush px-3 py-1 text-ink/80">Objetivo: {CONCERN_LABEL[answers.concern]}</li>
+          <li className="rounded-full bg-blush px-3 py-1 text-ink/80">{SENSITIVITY_LABEL[answers.sensitivity]}</li>
+          <li className="rounded-full bg-blush px-3 py-1 text-ink/80">
+            Rutina {answers.size === "completa" ? "completa" : "básica"}
+          </li>
+        </ul>
+      </div>
+
+      {result.items.length === 0 ? (
+        <div className="rounded-3xl border border-line bg-white p-8 text-center">
+          <p className="font-semibold text-ink">Por ahora no tenemos productos disponibles para tu perfil.</p>
+          <p className="mt-2 text-sm text-muted">Escríbenos y te ayudamos a encontrar una alternativa.</p>
+          <a
+            href={whatsappLink("¡Hola! Hice el test de piel pero no encontré productos para mi perfil. ¿Me pueden ayudar?")}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-[#25D366] px-7 py-3 font-semibold text-white hover:bg-[#20bd5a] transition-colors"
+          >
+            <WhatsAppIcon size={20} /> Escríbenos por WhatsApp
+          </a>
+        </div>
+      ) : (
+        <>
+          <ol className="space-y-4">
+            {result.items.map((item, index) => {
+              const p = item.product;
+              const image = p.image_urls?.[0] || p.image_url || PLACEHOLDER_IMAGE;
+              const optimizable = image.includes(".supabase.co/storage/");
+              const discounted = !!p.discount_price && p.discount_price > 0;
+              return (
+                <li key={p.id} className="rounded-2xl border border-line bg-white p-4 sm:p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-soft font-display text-sm text-brand">
+                        {index + 1}
+                      </span>
+                      {STEP_LABEL[item.step]}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-sage-soft px-2.5 py-1 text-xs font-medium text-sage">
+                      {item.when === "Noche" ? (
+                        <Moon size={13} aria-hidden="true" />
+                      ) : item.when === "Mañana" ? (
+                        <Sun size={13} aria-hidden="true" />
+                      ) : null}
+                      {item.when}
+                    </span>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <Link
+                      href={`/producto/${p.slug}`}
+                      className="relative h-24 w-24 sm:h-28 sm:w-28 shrink-0 rounded-xl border border-line bg-white"
+                    >
+                      <Image
+                        src={image}
+                        alt={p.name}
+                        fill
+                        sizes="112px"
+                        unoptimized={!optimizable && image !== PLACEHOLDER_IMAGE}
+                        className="object-contain p-2 mix-blend-multiply"
+                      />
+                    </Link>
+                    <div className="min-w-0 flex-1">
+                      {p.brand && (
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted/70 truncate">
+                          {p.brand}
+                        </p>
+                      )}
+                      <Link
+                        href={`/producto/${p.slug}`}
+                        className="font-sans font-semibold text-ink leading-snug hover:text-brand transition-colors line-clamp-2"
+                      >
+                        {p.name}
+                      </Link>
+                      <div className="mt-1.5 flex items-baseline gap-2">
+                        <span className={`font-bold ${discounted ? "text-brand" : "text-ink"}`}>{money(item.price)}</span>
+                        {discounted && <span className="text-sm text-muted/70 line-through">{money(p.price)}</span>}
+                      </div>
+                      <ul className="mt-2 flex flex-wrap gap-1.5">
+                        {item.reasons.map((reason) => (
+                          <li key={reason} className="rounded-full bg-blush/70 px-2.5 py-0.5 text-xs text-ink/80">
+                            {reason}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+
+                  {item.caution && (
+                    <p className="mt-3 flex gap-2 rounded-xl bg-brand-soft px-3 py-2 text-xs text-brand-dark">
+                      <AlertCircle size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
+                      {item.caution}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+
+          {result.notes.length > 0 && (
+            <div className="mt-5 space-y-2">
+              {result.notes.map((note) => (
+                <p key={note} className="rounded-xl border border-line bg-white px-4 py-3 text-sm text-muted">
+                  {note}
+                </p>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-6 rounded-3xl bg-blush p-6 sm:p-8">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <p className="text-sm text-muted">Total de tu rutina</p>
+                {hasDiscount && <p className="text-xs text-muted/80">Incluye precios con descuento</p>}
+              </div>
+              <p className="font-display text-3xl font-semibold text-ink">{money(result.total)}</p>
+            </div>
+            <div className="mt-5 flex flex-col sm:flex-row gap-3">
+              <a
+                href={whatsappLink(routineWhatsAppMessage(result, answers))}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[#25D366] px-6 py-3.5 font-semibold text-white shadow-lg shadow-green-900/10 hover:bg-[#20bd5a] transition-colors"
+              >
+                <WhatsAppIcon size={22} /> Pedir esta rutina por WhatsApp
+              </a>
+              <Link
+                href="/catalogo"
+                className="flex items-center justify-center rounded-full border border-ink/20 bg-white px-6 py-3.5 font-semibold text-ink hover:border-brand hover:text-brand transition-colors"
+              >
+                Ver el catálogo
+              </Link>
+            </div>
+          </div>
+        </>
+      )}
+
+      <div className="mt-6 text-center">
+        <button
+          type="button"
+          onClick={reset}
+          className="inline-flex items-center gap-2 text-sm font-semibold text-muted hover:text-brand transition-colors"
+        >
+          <RefreshCw size={16} aria-hidden="true" /> Repetir el test
+        </button>
+        <p className="mx-auto mt-4 max-w-xl text-xs text-muted/80 leading-relaxed">
+          Esta rutina es una guía basada en la información de cada producto y no reemplaza la opinión de un
+          dermatólogo. Si tu piel es muy sensible o tienes alguna condición, consulta con un profesional y prueba cada
+          producto en una zona pequeña antes de usarlo.
+        </p>
+      </div>
+    </main>
   );
 }

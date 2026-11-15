@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { ArrowLeft, Upload, Save, X } from "lucide-react";
+import TagPicker, { SKIN_TAG_OPTIONS, CONCERN_TAG_OPTIONS } from "@/components/admin/TagPicker";
 
 export default function NuevoProducto() {
   const [name, setName] = useState("");
@@ -14,6 +15,8 @@ export default function NuevoProducto() {
   const [ingredients, setIngredients] = useState("");
   const [howToUse, setHowToUse] = useState("");
   const [skinType, setSkinType] = useState("Todo tipo de piel");
+  const [skinTypes, setSkinTypes] = useState<string[]>(["seca", "grasa", "mixta", "normal", "sensible"]);
+  const [concerns, setConcerns] = useState<string[]>([]);
   const [category, setCategory] = useState("Serum");
   
   const [images, setImages] = useState<File[]>([]);
@@ -101,6 +104,8 @@ export default function NuevoProducto() {
           ingredients,
           how_to_use: howToUse,
           skin_type: skinType,
+          skin_types: skinTypes,
+          concerns,
           image_url: uploaded_urls[0], 
           image_urls: uploaded_urls 
         }
@@ -120,28 +125,28 @@ export default function NuevoProducto() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] p-4 md:p-6">
+    <div className="min-h-screen bg-cream p-4 md:p-6">
       <div className="max-w-4xl mx-auto">
         <button 
           onClick={() => window.location.href = '/admin/dashboard'} 
-          className="flex items-center gap-2 text-gray-500 hover:text-gray-900 mb-4 md:mb-6 transition-colors text-sm md:text-base"
+          className="flex items-center gap-2 text-muted hover:text-ink mb-4 md:mb-6 transition-colors text-sm md:text-base"
         >
           <ArrowLeft size={20} />
           Volver al inventario
         </button>
         
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="p-5 md:p-6 border-b border-gray-100 bg-white">
-            <h1 className="text-lg md:text-xl font-bold text-gray-900">Agregar Nuevo Producto</h1>
-            <p className="text-xs md:text-sm text-gray-500 mt-1">Completa los detalles y agrega hasta 5 fotografías.</p>
+        <div className="bg-white rounded-xl border border-line shadow-sm overflow-hidden">
+          <div className="p-5 md:p-6 border-b border-line bg-white">
+            <h1 className="text-lg md:text-xl font-bold text-ink">Agregar Nuevo Producto</h1>
+            <p className="text-xs md:text-sm text-muted mt-1">Completa los detalles y agrega hasta 5 fotografías.</p>
           </div>
           
           <form onSubmit={handleSubmit} className="p-5 md:p-8 space-y-6 md:space-y-8">
             
             {/* FOTOGRAFÍAS */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Fotografías del Producto (Máx 5)</label>
-              <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 md:p-8 text-center hover:bg-gray-50 transition-colors bg-white mb-4">
+              <label className="block text-sm font-medium text-ink/80 mb-2">Fotografías del Producto (Máx 5)</label>
+              <div className="border-2 border-dashed border-line rounded-xl p-6 md:p-8 text-center hover:bg-cream transition-colors bg-white mb-4">
                 <input
                   type="file"
                   accept="image/*"
@@ -151,17 +156,17 @@ export default function NuevoProducto() {
                   id="image-upload"
                 />
                 <label htmlFor="image-upload" className="cursor-pointer flex flex-col items-center">
-                  <Upload className="text-gray-400 mb-3" size={32} />
-                  <span className="text-sm text-gray-900 font-medium px-2">
+                  <Upload className="text-muted/70 mb-3" size={32} />
+                  <span className="text-sm text-ink font-medium px-2">
                     Toca para seleccionar tus imágenes
                   </span>
-                  <span className="text-xs text-gray-500 mt-1">PNG, JPG (Varias a la vez)</span>
+                  <span className="text-xs text-muted mt-1">PNG, JPG (Varias a la vez)</span>
                 </label>
               </div>
               {images.length > 0 && (
                 <div className="flex gap-3 flex-wrap">
                   {images.map((file, index) => (
-                    <div key={index} className="relative w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                    <div key={index} className="relative w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden border border-line shadow-sm">
                       <img 
                         src={URL.createObjectURL(file)} 
                         alt="Preview" 
@@ -170,7 +175,7 @@ export default function NuevoProducto() {
                       <button
                         type="button"
                         onClick={() => removeImage(index)}
-                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow-md"
+                        className="absolute top-1 right-1 bg-brand text-white rounded-full p-1 hover:bg-brand-dark transition-colors shadow-md"
                       >
                         <X size={12} />
                       </button>
@@ -183,20 +188,20 @@ export default function NuevoProducto() {
             {/* NOMBRES Y MARCA */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Nombre del Producto</label>
+                <label className="block text-sm font-medium text-ink/80 mb-1 md:mb-2">Nombre del Producto</label>
                 <input
                   type="text"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 placeholder-gray-400 bg-white text-sm md:text-base"
+                  className="w-full border border-muted/30 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-brand focus:border-transparent outline-none text-ink placeholder-gray-400 bg-white text-sm md:text-base"
                   placeholder="Ej. Serum de Vitamina C"
                 />
               </div>
               
               {/* CAMPO DE MARCA CON AUTOCOMPLETADO */}
               <div className="relative">
-                <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Marca</label>
+                <label className="block text-sm font-medium text-ink/80 mb-1 md:mb-2">Marca</label>
                 <input 
                   type="text" 
                   required 
@@ -210,13 +215,13 @@ export default function NuevoProducto() {
                     setBrand(brand.trim());
                     setTimeout(() => setShowBrandSuggestions(false), 200);
                   }} 
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 placeholder-gray-400 bg-white text-sm md:text-base" 
+                  className="w-full border border-muted/30 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-brand focus:border-transparent outline-none text-ink placeholder-gray-400 bg-white text-sm md:text-base" 
                   placeholder="Ej. YOSOY SKINCARE" 
                   autoComplete="off"
                 />
                 
                 {showBrandSuggestions && existingBrands.length > 0 && (
-                  <ul className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                  <ul className="absolute z-10 w-full mt-1 bg-white border border-line rounded-lg shadow-xl max-h-48 overflow-y-auto">
                     {existingBrands
                       .filter(b => b.includes(brand))
                       .map((b, index) => (
@@ -226,14 +231,14 @@ export default function NuevoProducto() {
                             setBrand(b);
                             setShowBrandSuggestions(false);
                           }}
-                          className="px-4 py-2.5 hover:bg-gray-50 hover:text-[#E50000] cursor-pointer text-sm text-gray-700 font-medium transition-colors border-b border-gray-50 last:border-0"
+                          className="px-4 py-2.5 hover:bg-cream hover:text-brand cursor-pointer text-sm text-ink/80 font-medium transition-colors border-b border-line/60 last:border-0"
                         >
                           {b}
                         </li>
                     ))}
                     
                     {brand && !existingBrands.some(b => b === brand) && (
-                      <li className="px-4 py-2.5 text-xs text-gray-400 bg-gray-50">
+                      <li className="px-4 py-2.5 text-xs text-muted/70 bg-cream">
                         Se registrará como nueva marca
                       </li>
                     )}
@@ -245,34 +250,34 @@ export default function NuevoProducto() {
             {/* PRECIO, OFERTA E INVENTARIO */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Precio Regular (RD$)</label>
+                <label className="block text-sm font-medium text-ink/80 mb-1 md:mb-2">Precio Regular (RD$)</label>
                 <input
                   type="number"
                   required
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 placeholder-gray-400 bg-white text-sm md:text-base"
+                  className="w-full border border-muted/30 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-brand focus:border-transparent outline-none text-ink placeholder-gray-400 bg-white text-sm md:text-base"
                   placeholder="0.00"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Precio Oferta (Opcional)</label>
+                <label className="block text-sm font-medium text-ink/80 mb-1 md:mb-2">Precio Oferta (Opcional)</label>
                 <input
                   type="number"
                   value={discountPrice}
                   onChange={(e) => setDiscountPrice(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-[#E50000] placeholder-gray-400 bg-red-50 text-sm md:text-base font-semibold"
+                  className="w-full border border-muted/30 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-brand focus:border-transparent outline-none text-brand placeholder-gray-400 bg-brand-soft text-sm md:text-base font-semibold"
                   placeholder="0.00"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Inventario Inicial</label>
+                <label className="block text-sm font-medium text-ink/80 mb-1 md:mb-2">Inventario Inicial</label>
                 <input
                   type="number"
                   required
                   value={stock}
                   onChange={(e) => setStock(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 placeholder-gray-400 bg-white text-sm md:text-base"
+                  className="w-full border border-muted/30 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-brand focus:border-transparent outline-none text-ink placeholder-gray-400 bg-white text-sm md:text-base"
                   placeholder="Cantidad"
                 />
               </div>
@@ -281,11 +286,11 @@ export default function NuevoProducto() {
             {/* CLASIFICACIÓN Y TIPO DE PIEL */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Clasificación</label>
+                <label className="block text-sm font-medium text-ink/80 mb-1 md:mb-2">Clasificación</label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 bg-white text-sm md:text-base"
+                  className="w-full border border-muted/30 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-brand focus:border-transparent outline-none text-ink bg-white text-sm md:text-base"
                 >
                   <option value="Limpiador">Limpiador</option>
                   <option value="Tónico">Tónico</option>
@@ -300,11 +305,11 @@ export default function NuevoProducto() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Tipo de Piel</label>
+                <label className="block text-sm font-medium text-ink/80 mb-1 md:mb-2">Tipo de Piel</label>
                 <select
                   value={skinType}
                   onChange={(e) => setSkinType(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 bg-white text-sm md:text-base"
+                  className="w-full border border-muted/30 rounded-lg px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-brand focus:border-transparent outline-none text-ink bg-white text-sm md:text-base"
                 >
                   <option value="Todo tipo de piel">Todo tipo de piel</option>
                   <option value="Piel Seca">Piel Seca</option>
@@ -318,49 +323,70 @@ export default function NuevoProducto() {
               </div>
             </div>
             
+            {/* ETIQUETAS PARA EL TEST DE PIEL */}
+            <div className="rounded-xl border border-line bg-cream p-4 md:p-5 space-y-5">
+              <p className="text-sm text-muted">
+                Estas etiquetas le dicen al <strong className="text-ink">test de piel</strong> cuándo recomendar este producto.
+                Marca solo lo que de verdad aplique.
+              </p>
+              <TagPicker
+                label="¿Para qué tipos de piel sirve?"
+                options={SKIN_TAG_OPTIONS}
+                value={skinTypes}
+                onChange={setSkinTypes}
+              />
+              <TagPicker
+                label="¿Qué ayuda a mejorar?"
+                hint="Déjalo vacío si es un producto básico (por ejemplo, un limpiador o protector solar suave)."
+                options={CONCERN_TAG_OPTIONS}
+                value={concerns}
+                onChange={setConcerns}
+              />
+            </div>
+
             {/* TEXTAREAS */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Descripción Detallada</label>
+              <label className="block text-sm font-medium text-ink/80 mb-1 md:mb-2">Descripción Detallada</label>
               <textarea
                 required
                 rows={4}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 placeholder-gray-400 bg-white text-sm md:text-base resize-none"
+                className="w-full border border-muted/30 rounded-lg px-4 py-3 focus:ring-2 focus:ring-brand focus:border-transparent outline-none text-ink placeholder-gray-400 bg-white text-sm md:text-base resize-none"
                 placeholder="Describe los beneficios principales..."
               />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Ingredientes Clave</label>
+                <label className="block text-sm font-medium text-ink/80 mb-1 md:mb-2">Ingredientes Clave</label>
                 <textarea
                   required
                   rows={4}
                   value={ingredients}
                   onChange={(e) => setIngredients(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 placeholder-gray-400 bg-white text-sm md:text-base resize-none"
+                  className="w-full border border-muted/30 rounded-lg px-4 py-3 focus:ring-2 focus:ring-brand focus:border-transparent outline-none text-ink placeholder-gray-400 bg-white text-sm md:text-base resize-none"
                   placeholder="Ej. Ácido Hialurónico al 2%..."
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Modo de Uso</label>
+                <label className="block text-sm font-medium text-ink/80 mb-1 md:mb-2">Modo de Uso</label>
                 <textarea
                   required
                   rows={4}
                   value={howToUse}
                   onChange={(e) => setHowToUse(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#E50000] focus:border-transparent outline-none text-gray-900 placeholder-gray-400 bg-white text-sm md:text-base resize-none"
+                  className="w-full border border-muted/30 rounded-lg px-4 py-3 focus:ring-2 focus:ring-brand focus:border-transparent outline-none text-ink placeholder-gray-400 bg-white text-sm md:text-base resize-none"
                   placeholder="Ej. Aplicar 3 a 4 gotas sobre el rostro limpio..."
                 />
               </div>
             </div>
             
             {/* BOTÓN GUARDAR */}
-            <div className="pt-6 border-t border-gray-100 flex justify-end">
+            <div className="pt-6 border-t border-line flex justify-end">
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full md:w-auto bg-[#E50000] hover:bg-red-700 text-white px-8 py-3.5 md:py-3 rounded-lg font-medium transition-colors flex justify-center items-center gap-2 shadow-sm disabled:opacity-70 text-base md:text-md"
+                className="w-full md:w-auto bg-brand hover:bg-brand-dark text-white px-8 py-3.5 md:py-3 rounded-lg font-medium transition-colors flex justify-center items-center gap-2 shadow-sm disabled:opacity-70 text-base md:text-md"
               >
                 {loading ? (
                   "Subiendo fotos y guardando..."
